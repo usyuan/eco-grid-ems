@@ -1,3 +1,4 @@
+import { PieChart as PieChartIcon } from "lucide-react";
 import { useMemo } from "react";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { useShallow } from "zustand/react/shallow";
@@ -37,7 +38,10 @@ export function GenerationMixChart() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>發電結構占比</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <PieChartIcon className="size-4" />
+          發電結構占比
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="h-64 w-full">

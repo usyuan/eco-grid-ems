@@ -53,7 +53,10 @@ export function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>近期告警</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="size-4" />
+            近期告警
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {recentAlerts.length === 0 ? (

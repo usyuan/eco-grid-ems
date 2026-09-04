@@ -1,7 +1,13 @@
-import * as echarts from "echarts";
+import { LineChart } from "echarts/charts";
+import { GridComponent, MarkLineComponent, TooltipComponent } from "echarts/components";
+import * as echarts from "echarts/core";
+import { SVGRenderer } from "echarts/renderers";
+import { Activity } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEMSStore } from "@/store/useEMSStore";
+
+echarts.use([LineChart, GridComponent, TooltipComponent, MarkLineComponent, SVGRenderer]);
 
 const fmtTime = (ts: number) =>
   new Date(ts).toLocaleTimeString("zh-TW", { hour12: false, minute: "2-digit", second: "2-digit" });
@@ -74,7 +80,10 @@ export function FrequencyChart() {
   return (
     <Card className="lg:col-span-2">
       <CardHeader>
-        <CardTitle>電網頻率即時波動</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Activity className="size-4" />
+          電網頻率即時波動
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div ref={containerRef} className="h-64 w-full" />
