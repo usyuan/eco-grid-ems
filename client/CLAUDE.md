@@ -17,6 +17,16 @@
 2. 用 `node` 內建 `fetch()` 直接測一次，確認是否真的是 proxy 中介層的問題而非端點本身失效
 3. 若原生 `fetch()` 正常，比照這支 API 的做法，改走後端代抓，不要在 Vite proxy 上硬解
 
+## 空氣品質卡片：地區依使用者位置自動選取
+
+新增 `useGeolocation.ts`（包 `navigator.geolocation`）+ `geo.ts`（Haversine 公式算兩點距離）。邏輯：
+
+1. 進頁面時請求定位權限
+2. 拿到座標後，跟全台 ~86 個測站的經緯度逐一算距離，選最近的
+3. 卡片上會顯示「依你目前位置自動選取最近測站（約 X.X 公里）」
+4. 使用者仍可用右上角下拉選單手動切換到任何測站，切換後就不再顯示自動選取的提示
+5. 若定位被拒絕或瀏覽器不支援，優雅降級為預設顯示第一個測站（不會卡住或報錯）
+
 ## 其他已知的台電/環境部開放資料細節
 
 - 台電機組出力明細（`/api/taipower` proxy → `service.taipower.com.tw/data/opendata/apply/file/d006001/001.json`）：陣列中混有「小計」列，且部分分類欄位殘留來源網頁的 HTML 標籤，消費時請用 `parseGeneratorUnits()`（[client/src/api/taipower.ts](src/api/taipower.ts)），不要直接迭代 `aaData`

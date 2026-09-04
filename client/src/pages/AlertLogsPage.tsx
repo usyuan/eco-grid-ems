@@ -12,18 +12,13 @@ import { useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { ALERT_LEVEL_LABEL, ALERT_LEVEL_VARIANT } from "@/lib/alertMeta";
 import { cn } from "@/lib/cn";
 import { downloadCsv } from "@/lib/csv";
 import { selectEquipmentList, useEMSStore } from "@/store/useEMSStore";
 import { useAlertStore } from "@/store/useAlertStore";
 import type { AlertEvent, AlertLevel } from "@/types/alerts";
 
-const LEVEL_LABEL: Record<AlertLevel, string> = { info: "資訊", warning: "警告", critical: "嚴重" };
-const LEVEL_VARIANT: Record<AlertLevel, "info" | "warning" | "critical"> = {
-  info: "info",
-  warning: "warning",
-  critical: "critical",
-};
 const LEVEL_FILTERS: Array<AlertLevel | "all"> = ["all", "critical", "warning", "info"];
 
 function formatDateTime(ts: number) {
@@ -60,7 +55,7 @@ export function AlertLogsPage() {
         header: "等級",
         cell: ({ getValue }) => {
           const level = getValue<AlertLevel>();
-          return <Badge variant={LEVEL_VARIANT[level]}>{LEVEL_LABEL[level]}</Badge>;
+          return <Badge variant={ALERT_LEVEL_VARIANT[level]}>{ALERT_LEVEL_LABEL[level]}</Badge>;
         },
       },
       {
@@ -101,7 +96,7 @@ export function AlertLogsPage() {
               onClick={() => acknowledgeAlert(row.original.id)}
               className="rounded-md border border-border px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
             >
-              標記已讀
+              標記已處理
             </button>
           ),
       },
@@ -126,7 +121,7 @@ export function AlertLogsPage() {
       .rows.map((r) => r.original)
       .map((a) => [
         formatDateTime(a.timestamp),
-        LEVEL_LABEL[a.level],
+        ALERT_LEVEL_LABEL[a.level],
         a.title,
         a.message,
         equipmentNameById.get(a.source) ?? a.source,
@@ -160,7 +155,7 @@ export function AlertLogsPage() {
                 levelFilter === level && "border-primary bg-primary/10 text-primary",
               )}
             >
-              {level === "all" ? "全部等級" : LEVEL_LABEL[level]}
+              {level === "all" ? "全部等級" : ALERT_LEVEL_LABEL[level]}
             </button>
           ))}
         </div>
@@ -182,7 +177,7 @@ export function AlertLogsPage() {
             className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-foreground"
           >
             <CheckCheck className="size-3.5" />
-            全部標記已讀
+            全部標記已處理
           </button>
           <button
             type="button"

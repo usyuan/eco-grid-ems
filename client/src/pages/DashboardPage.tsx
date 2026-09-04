@@ -1,10 +1,14 @@
 import { Activity, AlertTriangle, Server, Zap } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
+import { AirQualityCard } from "@/components/dashboard/AirQualityCard";
 import { FrequencyChart } from "@/components/dashboard/FrequencyChart";
 import { GenerationMixChart } from "@/components/dashboard/GenerationMixChart";
+import { GeneratorMixCard } from "@/components/dashboard/GeneratorMixCard";
 import { KpiCard } from "@/components/dashboard/KpiCard";
+import { PowerSupplyCard } from "@/components/dashboard/PowerSupplyCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { ALERT_LEVEL_LABEL, ALERT_LEVEL_VARIANT } from "@/lib/alertMeta";
 import { selectUnacknowledgedCount, useAlertStore } from "@/store/useAlertStore";
 import {
   selectEquipmentList,
@@ -12,13 +16,6 @@ import {
   selectTotalOutputKw,
   useEMSStore,
 } from "@/store/useEMSStore";
-import type { AlertLevel } from "@/types/alerts";
-
-const LEVEL_VARIANT: Record<AlertLevel, "warning" | "critical" | "info"> = {
-  warning: "warning",
-  critical: "critical",
-  info: "info",
-};
 
 export function DashboardPage() {
   const equipment = useEMSStore(useShallow(selectEquipmentList));
@@ -65,7 +62,7 @@ export function DashboardPage() {
             <ul className="flex flex-col gap-2">
               {recentAlerts.map((alert) => (
                 <li key={alert.id} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2">
-                  <Badge variant={LEVEL_VARIANT[alert.level]}>{alert.level.toUpperCase()}</Badge>
+                  <Badge variant={ALERT_LEVEL_VARIANT[alert.level]}>{ALERT_LEVEL_LABEL[alert.level]}</Badge>
                   <span className="text-sm">{alert.title}</span>
                   <span className="ml-auto text-xs text-muted">
                     {new Date(alert.timestamp).toLocaleTimeString("zh-TW", { hour12: false })}
@@ -76,6 +73,12 @@ export function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <PowerSupplyCard />
+        <AirQualityCard />
+        <GeneratorMixCard />
+      </div>
     </div>
   );
 }
