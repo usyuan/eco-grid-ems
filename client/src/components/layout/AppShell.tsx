@@ -1,6 +1,7 @@
-import { AlertTriangle, LayoutDashboard, Leaf, Server, Wifi, WifiOff } from "lucide-react";
+import { AlertTriangle, LayoutDashboard, Leaf, Moon, Server, Sun, Wifi, WifiOff } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -15,6 +16,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 import { selectUnacknowledgedCount, useAlertStore } from "@/store/useAlertStore";
 import { useEMSStore } from "@/store/useEMSStore";
@@ -29,6 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const connected = useEMSStore((s) => s.connected);
   const unacknowledged = useAlertStore(selectUnacknowledgedCount);
   const { pathname } = useLocation();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <SidebarProvider>
@@ -54,7 +57,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                         <span>{label}</span>
                       </SidebarMenuButton>
                       {label === "告警紀錄" && unacknowledged > 0 && (
-                        <SidebarMenuBadge className="bg-destructive/15 text-destructive">
+                        <SidebarMenuBadge className="bg-destructive text-white">
                           {unacknowledged}
                         </SidebarMenuBadge>
                       )}
@@ -75,14 +78,24 @@ export function AppShell({ children }: { children: ReactNode }) {
               智慧綠能與 IoT 即時監控平台
             </div>
           </div>
-          <div
-            className={cn(
-              "flex shrink-0 items-center gap-2 rounded-full px-3 py-1 text-xs font-medium",
-              connected ? "bg-primary/15 text-primary" : "bg-destructive/15 text-destructive",
-            )}
-          >
-            {connected ? <Wifi className="size-3.5" /> : <WifiOff className="size-3.5" />}
-            <span className="hidden sm:inline">{connected ? "即時連線中" : "連線中斷"}</span>
+          <div className="flex shrink-0 items-center gap-2">
+            <div
+              className={cn(
+                "flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium",
+                connected ? "bg-primary/15 text-primary" : "bg-destructive/15 text-destructive",
+              )}
+            >
+              {connected ? <Wifi className="size-3.5" /> : <WifiOff className="size-3.5" />}
+              <span className="hidden sm:inline">{connected ? "即時連線中" : "連線中斷"}</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={theme === "dark" ? "切換為淺色模式" : "切換為深色模式"}
+              onClick={toggleTheme}
+            >
+              {theme === "dark" ? <Sun /> : <Moon />}
+            </Button>
           </div>
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">{children}</main>

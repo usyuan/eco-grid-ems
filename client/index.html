@@ -1,10 +1,17 @@
 <!doctype html>
-<html lang="zh-Hant" class="dark">
+<html lang="zh-Hant">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EcoGrid EMS — 智慧綠能即時監控平台</title>
+    <script>
+      (function () {
+        var stored = localStorage.getItem("ecogrid-theme");
+        var isDark = stored !== "light";
+        document.documentElement.classList.toggle("dark", isDark);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

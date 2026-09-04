@@ -54,9 +54,10 @@
 }
 
 /*
- * EcoGrid EMS 走「常駐深色」的監控儀表板風格，:root 仍保留一份可用的淺色版本
- * （避免未來要加淺色切換時要從零設計），但 index.html 固定加上 .dark，
- * 實際畫面一律吃下面 .dark 區塊的品牌配色。
+ * EcoGrid EMS 預設走深色的監控儀表板風格，但支援切換成 :root 這份淺色版本。
+ * 切換邏輯見 client/src/hooks/useTheme.ts：依 localStorage（key: ecogrid-theme）
+ * 決定要不要在 <html> 加上 .dark class，index.html 內也有一段 inline script
+ * 在畫面渲染前先套用，避免閃爍（FOUC）。
  */
 :root {
   --background: oklch(1 0 0);
