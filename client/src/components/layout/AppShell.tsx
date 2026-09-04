@@ -57,7 +57,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                         <span>{label}</span>
                       </SidebarMenuButton>
                       {label === "告警紀錄" && unacknowledged > 0 && (
-                        <SidebarMenuBadge className="bg-destructive text-white">
+                        <SidebarMenuBadge className="bg-destructive text-white peer-hover/menu-button:text-white peer-data-active/menu-button:text-white">
                           {unacknowledged}
                         </SidebarMenuBadge>
                       )}
