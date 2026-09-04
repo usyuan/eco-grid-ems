@@ -6,8 +6,8 @@ export const ALERT_LEVEL_LABEL: Record<AlertLevel, string> = {
   critical: "嚴重",
 };
 
-export const ALERT_LEVEL_VARIANT: Record<AlertLevel, "info" | "warning" | "critical"> = {
+export const ALERT_LEVEL_VARIANT: Record<AlertLevel, "info" | "warning" | "destructive"> = {
   info: "info",
   warning: "warning",
-  critical: "critical",
+  critical: "destructive",
 };

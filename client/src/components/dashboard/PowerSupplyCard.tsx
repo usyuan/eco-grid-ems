@@ -1,11 +1,12 @@
 import { Gauge } from "lucide-react";
 import { parseLoadPara, usePowerSupply } from "@/api/taipower";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-xs text-muted">{label}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
       <span className="text-lg font-semibold tabular-nums">{value}</span>
     </div>
   );
@@ -24,9 +25,16 @@ export function PowerSupplyCard() {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <p className="py-8 text-center text-sm text-muted">載入中…</p>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex flex-col gap-1.5">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-6 w-20" />
+              </div>
+            ))}
+          </div>
         ) : isError || !data ? (
-          <p className="py-8 text-center text-sm text-muted">目前無法取得台電供需資料</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">目前無法取得台電供需資料</p>
         ) : (
           (() => {
             const parsed = parseLoadPara(data);

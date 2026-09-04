@@ -24,10 +24,10 @@ export const STATUS_LABEL: Record<EquipmentStatus, string> = {
   offline: "離線",
 };
 
-export const STATUS_BADGE_VARIANT: Record<EquipmentStatus, "online" | "warning" | "critical" | "offline"> = {
+export const STATUS_BADGE_VARIANT: Record<EquipmentStatus, "online" | "warning" | "destructive" | "offline"> = {
   online: "online",
   warning: "warning",
-  critical: "critical",
+  critical: "destructive",
   offline: "offline",
 };
 

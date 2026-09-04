@@ -4,9 +4,10 @@ import { useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { EquipmentDetail } from "@/components/equipment/EquipmentDetail";
 import { EquipmentRow } from "@/components/equipment/EquipmentRow";
-import { Card } from "@/components/ui/Card";
-import { Modal } from "@/components/ui/Modal";
-import { cn } from "@/lib/cn";
+import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { STATUS_LABEL } from "@/lib/equipmentMeta";
 import { selectEquipmentList, useEMSStore } from "@/store/useEMSStore";
 import type { EquipmentStatus } from "@/types/equipment";
@@ -48,39 +49,38 @@ export function EquipmentPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative w-full sm:w-64">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-          <input
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="搜尋設備名稱或位置"
-            className="w-full rounded-lg border border-border bg-surface py-2 pl-9 pr-3 text-sm outline-none placeholder:text-muted focus:border-primary"
+            className="pl-9"
           />
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <ToggleGroup
+          value={[statusFilter]}
+          onValueChange={(value: string[]) => {
+            if (value[0]) setStatusFilter(value[0] as EquipmentStatus | "all");
+          }}
+          variant="outline"
+          size="sm"
+        >
           {STATUS_FILTERS.map((status) => (
-            <button
-              key={status}
-              type="button"
-              onClick={() => setStatusFilter(status)}
-              className={cn(
-                "rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:text-foreground",
-                statusFilter === status && "border-primary bg-primary/10 text-primary",
-              )}
-            >
+            <ToggleGroupItem key={status} value={status}>
               {status === "all" ? "全部" : STATUS_LABEL[status]} ({statusCounts[status] ?? 0})
-            </button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
 
-        <span className="ml-auto text-xs text-muted">
+        <span className="ml-auto text-xs text-muted-foreground">
           顯示 {filtered.length} / {equipment.length} 台設備
         </span>
       </div>
 
-      <Card className="overflow-x-auto">
+      <Card className="overflow-x-auto [--card-spacing:0px]">
         <div className="min-w-[720px]">
-          <div className="flex items-center gap-4 border-b border-border px-4 py-2 text-xs font-medium text-muted">
+          <div className="flex items-center gap-4 border-b px-4 py-2 text-xs font-medium text-muted-foreground">
             <span className="w-9 shrink-0" />
             <span className="w-40 shrink-0">設備</span>
             <span className="flex-1">輸出負載</span>
@@ -91,7 +91,7 @@ export function EquipmentPage() {
 
           <div ref={scrollRef} className="h-[calc(100vh-280px)] overflow-y-auto">
             {filtered.length === 0 ? (
-              <p className="py-16 text-center text-sm text-muted">沒有符合條件的設備</p>
+              <p className="py-16 text-center text-sm text-muted-foreground">沒有符合條件的設備</p>
             ) : (
               <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
                 {virtualizer.getVirtualItems().map((virtualRow) => {
@@ -118,9 +118,14 @@ export function EquipmentPage() {
         </div>
       </Card>
 
-      <Modal open={Boolean(selected)} onClose={() => setSelectedId(null)} title="設備詳細資訊">
-        {selected && <EquipmentDetail node={selected} />}
-      </Modal>
+      <Dialog open={Boolean(selected)} onOpenChange={(open) => !open && setSelectedId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>設備詳細資訊</DialogTitle>
+          </DialogHeader>
+          {selected && <EquipmentDetail node={selected} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

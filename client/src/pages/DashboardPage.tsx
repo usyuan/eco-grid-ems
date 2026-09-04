@@ -6,8 +6,8 @@ import { GenerationMixChart } from "@/components/dashboard/GenerationMixChart";
 import { GeneratorMixCard } from "@/components/dashboard/GeneratorMixCard";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { PowerSupplyCard } from "@/components/dashboard/PowerSupplyCard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ALERT_LEVEL_LABEL, ALERT_LEVEL_VARIANT } from "@/lib/alertMeta";
 import { selectUnacknowledgedCount, useAlertStore } from "@/store/useAlertStore";
 import {
@@ -42,7 +42,7 @@ export function DashboardPage() {
           label="未處理告警"
           value={String(unacknowledged)}
           icon={AlertTriangle}
-          tone={unacknowledged > 0 ? "critical" : "primary"}
+          tone={unacknowledged > 0 ? "destructive" : "primary"}
         />
       </div>
 
@@ -57,14 +57,14 @@ export function DashboardPage() {
         </CardHeader>
         <CardContent>
           {recentAlerts.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted">目前沒有告警事件</p>
+            <p className="py-6 text-center text-sm text-muted-foreground">目前沒有告警事件</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {recentAlerts.map((alert) => (
-                <li key={alert.id} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2">
+                <li key={alert.id} className="flex items-center gap-3 rounded-lg border px-3 py-2">
                   <Badge variant={ALERT_LEVEL_VARIANT[alert.level]}>{ALERT_LEVEL_LABEL[alert.level]}</Badge>
                   <span className="text-sm">{alert.title}</span>
-                  <span className="ml-auto text-xs text-muted">
+                  <span className="ml-auto text-xs text-muted-foreground">
                     {new Date(alert.timestamp).toLocaleTimeString("zh-TW", { hour12: false })}
                   </span>
                 </li>

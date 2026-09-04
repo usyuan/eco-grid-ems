@@ -1,6 +1,6 @@
 import * as echarts from "echarts";
 import { useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEMSStore } from "@/store/useEMSStore";
 
 const fmtTime = (ts: number) =>

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { useShallow } from "zustand/react/shallow";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { selectEquipmentList, useEMSStore } from "@/store/useEMSStore";
 import type { EquipmentType } from "@/types/equipment";
 
