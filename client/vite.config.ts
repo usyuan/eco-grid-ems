@@ -5,6 +5,8 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // GitHub Pages 是以子路徑（/eco-grid-ems/）服務，用相對路徑打包才能正確載入資產
+  base: './',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
