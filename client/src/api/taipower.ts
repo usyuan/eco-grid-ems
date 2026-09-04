@@ -28,7 +28,12 @@ export function usePowerSupply() {
   });
 }
 
-/** 各機組即時出力明細（含太陽能、風力等再生能源分類） */
+/**
+ * 各機組即時出力明細（含太陽能、風力等再生能源分類）。
+ * 走 Vite dev proxy（見 vite.config.ts）代抓 service.taipower.com.tw。
+ * 這支上游完全沒有回 Access-Control-Allow-Origin，瀏覽器無法直接跨網域呼叫，
+ * 因此純靜態環境（如 GitHub Pages，沒有部署 server/）目前無法取得這份資料。
+ */
 export function useGeneratorUnits() {
   return useQuery({
     queryKey: ["generatorUnits"],
