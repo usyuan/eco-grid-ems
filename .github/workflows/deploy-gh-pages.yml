@@ -35,6 +35,11 @@ jobs:
       - run: pnpm --filter client build
         env:
           VITE_MOENV_API_KEY: ${{ secrets.VITE_MOENV_API_KEY }}
+          # 這兩個值會被打包進前端 bundle（Maps JavaScript API 的必然），
+          # 真正的保護是在 Google Cloud Console 對金鑰設 HTTP referrer 限制，
+          # 只允許本站網域。未設定時地圖頁會顯示提示，不影響其他頁面建置。
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          VITE_GOOGLE_MAPS_MAP_ID: ${{ secrets.VITE_GOOGLE_MAPS_MAP_ID }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

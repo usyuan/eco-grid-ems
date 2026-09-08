@@ -1,4 +1,4 @@
-import { AlertTriangle, LayoutDashboard, Leaf, Moon, Server, Sun, Wifi, WifiOff } from "lucide-react";
+import { AlertTriangle, LayoutDashboard, Leaf, MapPinned, Moon, Server, Sun, Wifi, WifiOff } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { useEMSStore } from "@/store/useEMSStore";
 
 const NAV_ITEMS = [
   { to: "/", label: "儀表板", icon: LayoutDashboard, end: true },
+  { to: "/map", label: "環境地圖", icon: MapPinned, end: false },
   { to: "/equipment", label: "設備管理", icon: Server, end: false },
   { to: "/alerts", label: "告警紀錄", icon: AlertTriangle, end: false },
 ];

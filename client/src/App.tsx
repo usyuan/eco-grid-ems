@@ -7,6 +7,7 @@ import { useSocketBridge } from "@/lib/useSocketBridge";
 import { AlertLogsPage } from "@/pages/AlertLogsPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { EquipmentPage } from "@/pages/EquipmentPage";
+import { MapPage } from "@/pages/MapPage";
 
 function AppRoutes() {
   useSocketBridge();
@@ -14,6 +15,7 @@ function AppRoutes() {
     <AppShell>
       <Routes>
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/map" element={<MapPage />} />
         <Route path="/equipment" element={<EquipmentPage />} />
         <Route path="/alerts" element={<AlertLogsPage />} />
       </Routes>

@@ -139,3 +139,37 @@
     @apply font-sans;
   }
 }
+
+/*
+ * Google Maps InfoWindow 的外框（白底、圓角、下方箭頭）是由 Maps JavaScript API
+ * 自己注入的 DOM，我們只能拿到裡面的內容節點，因此外框只能靠覆寫它的 class 來
+ * 融入主題。這些 class 名稱由 Google 控制，未來版本有可能變動；若某天氣泡又變回
+ * 白底，先檢查這幾個選擇器是否還存在。
+ *
+ * 用 !important 是因為 API 會把佈景色寫成行內樣式，優先權高於一般規則。
+ */
+.gm-style .gm-style-iw-c {
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--popover) !important;
+  color: var(--popover-foreground);
+  box-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.45);
+}
+
+.gm-style .gm-style-iw-d {
+  padding: 0.875rem;
+  background-color: transparent !important;
+  /* 內容寬度是固定的，關掉 API 預設的捲軸才不會多出一條灰線 */
+  overflow: hidden !important;
+}
+
+/* 氣泡下方指向 marker 的三角形，要跟著換色才不會露出一角白邊 */
+.gm-style .gm-style-iw-tc::after {
+  background: var(--popover) !important;
+}
+
+/* headerDisabled 已經關掉標題列，這行是防止某些版本仍保留空白的關閉鈕區塊 */
+.gm-style .gm-style-iw-chr {
+  display: none;
+}
