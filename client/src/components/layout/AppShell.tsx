@@ -1,5 +1,5 @@
 import { AlertTriangle, LayoutDashboard, Leaf, MapPinned, Moon, Server, Sun, Wifi, WifiOff } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
@@ -28,14 +29,56 @@ const NAV_ITEMS = [
   { to: "/alerts", label: "告警紀錄", icon: AlertTriangle, end: false },
 ];
 
+// 行動版抽屜在路由切換成功後自動收合。
+// 這個元件必須掛在 Sidebar 之外：行動版 Sheet 只在開啟時才掛載內容，
+// 若把 effect 放進選單裡，抽屜一打開就會跑首次 effect 而立刻被關掉。
+function CollapseMobileSidebarOnNavigate() {
+  const { pathname } = useLocation();
+  const { setOpenMobile } = useSidebar();
+  const previousPathname = useRef(pathname);
+
+  useEffect(() => {
+    if (previousPathname.current === pathname) return;
+    previousPathname.current = pathname;
+    setOpenMobile(false);
+  }, [pathname, setOpenMobile]);
+
+  return null;
+}
+
+function AppSidebarNav() {
+  const { pathname } = useLocation();
+  const unacknowledged = useAlertStore(selectUnacknowledgedCount);
+
+  return (
+    <SidebarMenu>
+      {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => {
+        const isActive = end ? pathname === to : pathname.startsWith(to);
+        return (
+          <SidebarMenuItem key={to}>
+            <SidebarMenuButton render={<NavLink to={to} />} isActive={isActive} tooltip={label}>
+              <Icon />
+              <span>{label}</span>
+            </SidebarMenuButton>
+            {label === "告警紀錄" && unacknowledged > 0 && (
+              <SidebarMenuBadge className="bg-destructive text-white peer-hover/menu-button:text-white peer-data-active/menu-button:text-white">
+                {unacknowledged}
+              </SidebarMenuBadge>
+            )}
+          </SidebarMenuItem>
+        );
+      })}
+    </SidebarMenu>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const connected = useEMSStore((s) => s.connected);
-  const unacknowledged = useAlertStore(selectUnacknowledgedCount);
-  const { pathname } = useLocation();
   const { theme, toggleTheme } = useTheme();
 
   return (
     <SidebarProvider>
+      <CollapseMobileSidebarOnNavigate />
       <Sidebar collapsible="icon">
         <SidebarHeader>
           <div className="flex items-center gap-2 px-2 py-1.5">
@@ -48,24 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <SidebarContent>
           <SidebarGroup>
             <SidebarGroupContent>
-              <SidebarMenu>
-                {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => {
-                  const isActive = end ? pathname === to : pathname.startsWith(to);
-                  return (
-                    <SidebarMenuItem key={to}>
-                      <SidebarMenuButton render={<NavLink to={to} />} isActive={isActive} tooltip={label}>
-                        <Icon />
-                        <span>{label}</span>
-                      </SidebarMenuButton>
-                      {label === "告警紀錄" && unacknowledged > 0 && (
-                        <SidebarMenuBadge className="bg-destructive text-white peer-hover/menu-button:text-white peer-data-active/menu-button:text-white">
-                          {unacknowledged}
-                        </SidebarMenuBadge>
-                      )}
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
+              <AppSidebarNav />
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
