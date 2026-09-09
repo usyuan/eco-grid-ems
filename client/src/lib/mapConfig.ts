@@ -12,8 +12,6 @@ export const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? "
  */
 export const GOOGLE_MAPS_MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || "DEMO_MAP_ID";
 
-export const MAPS_CONFIGURED = Boolean(GOOGLE_MAPS_API_KEY);
-
 /** 台灣本島加離島大致的視覺中心 */
 export const TAIWAN_CENTER = { lat: 23.75, lng: 120.95 };
 
@@ -24,7 +22,7 @@ export const DEFAULT_ZOOM = 7.4;
 export const FOCUS_ZOOM = 11;
 
 /**
- * 低於這個縮放層級時，測站改用純色小圓點呈現。
- * 全台視野下 86 個數值徽章會互相遮蔽，縮成圓點才看得出分布密度。
+ * 低於這個縮放層級時，測站改依縣市聚合成單一 marker。
+ * 全台視野下 86 個數值徽章會互相遮蔽，聚合後才看得出各縣市的整體狀況。
  */
-export const BADGE_ZOOM_THRESHOLD = 8.5;
+export const CLUSTER_ZOOM_THRESHOLD = 9;

@@ -59,11 +59,12 @@ src/
 
 把儀表板「空氣品質」卡片背後那份環境部測站資料（全台約 84–86 站，每筆自帶經緯度）攤到地圖上，一次看完全台分布：
 
-- **Marker**：Advanced Marker 渲染自訂 DOM，圓形徽章直接顯示數值，底色是環境部官方六級色階（定義在 [`src/lib/aqiScale.ts`](src/lib/aqiScale.ts)）。縮放層級低於 `BADGE_ZOOM_THRESHOLD` 時徽章縮成純色小圓點，否則全台視野下 80 幾個徽章會互相遮蔽。
+- **Marker**：Advanced Marker 渲染自訂 DOM，圓形徽章直接顯示數值，底色是環境部官方六級色階（定義在 [`src/lib/aqiScale.ts`](src/lib/aqiScale.ts)）。
+- **縣市聚合**：縮放層級低於 `CLUSTER_ZOOM_THRESHOLD` 時，測站依 `county` 聚合成一顆縣市 marker（聚合邏輯在 [`src/lib/countyGroups.ts`](src/lib/countyGroups.ts)），顯示該縣市平均值與測站數，否則全台視野下 80 幾個徽章會互相遮蔽。平均只計入有測值的測站；點擊聚合會 `fitBounds` 到該縣市的測站範圍並展開成個別測站。
 - **指標切換**：AQI / PM2.5 / PM10 / O₃(8hr)。四個指標各有自己的分級斷點（取自環境部 AQI 副指標濃度對照表），所以切換後同一組顏色仍代表同一種健康風險等級。O₃ 用 8 小時移動平均而非小時值，與 AQI 的算法一致。
 - **InfoWindow**：關掉 API 原生標題列（`headerDisabled`）自行渲染 React 內容，外框顏色靠覆寫 Google 的 class 融入主題，覆寫規則與注意事項見 [`src/index.css`](src/index.css) 底部。
 - **自動定位**：沿用 `useGeolocation` + `haversineDistanceKm`，進頁面後自動選中最近測站，行為與 `AirQualityCard` 一致。
-- **降級**：未設定金鑰時顯示提示畫面而非白屏，其他頁面不受影響。
+- **降級**：測站資料抓不到時顯示提示畫面而非白屏，其他頁面不受影響。
 
 ## Google Maps 設定
 

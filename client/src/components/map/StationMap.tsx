@@ -1,6 +1,7 @@
 import { APIProvider, Map, type MapCameraChangedEvent, useMap } from "@vis.gl/react-google-maps";
 import { Crosshair, Layers } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CountyMarker } from "@/components/map/CountyMarker";
 import { MapLegend } from "@/components/map/MapLegend";
 import { StationInfoWindow } from "@/components/map/StationInfoWindow";
 import { StationMarker } from "@/components/map/StationMarker";
@@ -8,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useTheme } from "@/hooks/useTheme";
 import { coordsOf, METRIC_ORDER, METRICS, type MetricKey } from "@/lib/aqiScale";
+import { type CountyGroup, groupByCounty } from "@/lib/countyGroups";
 import {
-  BADGE_ZOOM_THRESHOLD,
+  CLUSTER_ZOOM_THRESHOLD,
   DEFAULT_ZOOM,
   FOCUS_ZOOM,
   GOOGLE_MAPS_API_KEY,
@@ -73,7 +75,33 @@ function MapSurface({
     map.setZoom(FOCUS_ZOOM);
   }, [map, userCoords]);
 
-  const expanded = zoom >= BADGE_ZOOM_THRESHOLD;
+  const clustered = zoom < CLUSTER_ZOOM_THRESHOLD;
+  const countyGroups = useMemo(
+    () => (clustered ? groupByCounty(records, metric) : []),
+    [clustered, records, metric],
+  );
+
+  // 點縣市聚合就展開該縣市：框住其測站範圍，讓相機停下來後自動落到測站層級
+  const focusCounty = useCallback(
+    (group: CountyGroup) => {
+      if (!map) return;
+      const { north, south, east, west } = group.bounds;
+      // 只有單一測站的縣市（如離島）bounds 是零面積，fitBounds 對這種範圍不會有反應，
+      // 直接對準中心點放大
+      if (Math.max(north - south, east - west) < 0.05) {
+        map.panTo(group.center);
+        map.setZoom(FOCUS_ZOOM);
+        return;
+      }
+      map.fitBounds(group.bounds, 80);
+      // 測站彼此很近的縣市會被 fitBounds 拉到過深的層級，等相機停下來後夾回可讀範圍
+      const listener = map.addListener("idle", () => {
+        listener.remove();
+        if ((map.getZoom() ?? 0) > FOCUS_ZOOM) map.setZoom(FOCUS_ZOOM);
+      });
+    },
+    [map],
+  );
 
   return (
     <div className="relative size-full overflow-hidden rounded-xl border">
@@ -97,16 +125,29 @@ function MapSurface({
         onClick={() => onSelect(null)}
         className="size-full"
       >
-        {records.map((record) => (
-          <StationMarker
-            key={record.siteid}
-            record={record}
-            metric={metric}
-            expanded={expanded}
-            selected={record.siteid === selectedSiteId}
-            onSelect={onSelect}
-          />
-        ))}
+        {clustered
+          ? countyGroups.map((group) => (
+              <CountyMarker
+                key={group.county}
+                group={group}
+                metric={metric}
+                onSelect={focusCounty}
+              />
+            ))
+          : records.map((record) => (
+              <StationMarker
+                key={record.siteid}
+                record={record}
+                metric={metric}
+                selected={record.siteid === selectedSiteId}
+                onSelect={onSelect}
+              />
+            ))}
+
+        {/* 聚合視野下仍單獨畫出被選中的測站，否則資訊視窗會指向一個看不見的點 */}
+        {clustered && selected && (
+          <StationMarker record={selected} metric={metric} selected onSelect={onSelect} />
+        )}
 
         {selected && (
           <StationInfoWindow

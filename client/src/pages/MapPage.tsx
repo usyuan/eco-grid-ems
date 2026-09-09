@@ -1,4 +1,4 @@
-import { MapPinned, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useAirQuality } from "@/api/moenv";
 import { StationMap } from "@/components/map/StationMap";
@@ -6,7 +6,6 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { Skeleton } from "@/components/ui/skeleton";
 import { coordsOf, type MetricKey } from "@/lib/aqiScale";
 import { haversineDistanceKm } from "@/lib/geo";
-import { MAPS_CONFIGURED } from "@/lib/mapConfig";
 import { useGeolocation } from "@/lib/useGeolocation";
 
 export function MapPage() {
@@ -63,13 +62,7 @@ export function MapPage() {
         </p>
       </div>
 
-      {!MAPS_CONFIGURED ? (
-        <MapPlaceholder
-          icon={<MapPinned />}
-          title="尚未設定 Google Maps 金鑰"
-          description="請在 client/.env 填入 VITE_GOOGLE_MAPS_API_KEY 與 VITE_GOOGLE_MAPS_MAP_ID，重新啟動開發伺服器後即可顯示地圖。申請步驟見 client/README.md。"
-        />
-      ) : isLoading ? (
+      {isLoading ? (
         <Skeleton className="min-h-0 w-full flex-1 rounded-xl" />
       ) : isError || stations.length === 0 ? (
         <MapPlaceholder
