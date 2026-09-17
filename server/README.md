@@ -2,7 +2,7 @@
 
 開發用的模擬後端：Express + Socket.IO，**純記憶體、無資料庫**，只負責兩件事。
 
-**此服務不會被部署**——正式環境（GitHub Pages）是純靜態站，只有 `client/` 會上線。詳見 [根 README](../README.md) 的〈架構〉。
+此服務以容器部署到 **Cloud Run**，正式環境（GitHub Pages 靜態站）透過它的 `*.run.app` 網址連線。建置與部署流程見 [docs/gcp-deploy.md](../docs/gcp-deploy.md)，整體架構見 [根 README](../README.md) 的〈架構〉。
 
 開發時的注意事項見 [CLAUDE.md](CLAUDE.md)。
 
@@ -44,5 +44,17 @@ pnpm --filter server start   # node dist/index.js
 
 | 環境變數 | 預設 | 說明 |
 |---|---|---|
-| `PORT` | `4000` | 監聽埠 |
-| `CLIENT_ORIGIN` | `http://localhost:5173` | CORS 與 Socket.IO 允許的來源 |
+| `PORT` | `4000`（容器內為 `8080`） | 監聽埠。Cloud Run 會以此告知要聽哪個埠，不可寫死 |
+| `CLIENT_ORIGIN` | `http://localhost:5173` | CORS 與 Socket.IO 允許的來源，**逗號分隔可給多個** |
+| `NODE_ENV` | 未設 | 設為 `production` 時 log 改印單行 JSON（給 Cloud Logging 解析） |
+
+### 容器
+
+部署相關的四份設定（`Dockerfile`、`Dockerfile.dockerignore`、`.gcloudignore`、`cloudbuild.yaml`）都在這個資料夾，但 **build context 是 repo 根目錄**——pnpm 的 lockfile 與 workspace 設定都在那裡。指令一律從根目錄下：
+
+```bash
+docker build -f server/Dockerfile -t eco-grid-server .
+docker run --rm -p 4000:8080 -e CLIENT_ORIGIN=http://localhost:5173 eco-grid-server
+```
+
+推到 GCP 的完整流程（Cloud Build → Artifact Registry → Cloud Run）見 [docs/gcp-deploy.md](../docs/gcp-deploy.md)。

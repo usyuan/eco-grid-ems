@@ -4,7 +4,7 @@
 
 線上展示：<https://usyuan.github.io/eco-grid-ems/>
 
-> 正式環境是純靜態站（未部署後端），因此**電網頻率、設備、告警等即時資料在線上展示中不會更新**，僅環境部空氣品質為真實資料。完整功能需在本機同時啟動 `client` 與 `server`，原因見〈架構〉。
+> 展示站的即時資料（電網頻率、設備、告警）來自部署在 Cloud Run 的模擬後端。**需先完成 [docs/gcp-deploy.md](docs/gcp-deploy.md) 的一次性設定、並把服務網址填進 repo variable `VITE_SERVER_URL`**，在那之前線上這些數字不會更新。台電機組出力明細因上游未開放 CORS，線上仍取不到；其餘功能與本機一致。原因見〈架構〉。
 
 ## 功能
 
@@ -19,15 +19,19 @@
 
 ```mermaid
 flowchart TB
-    A["client/（React + Vite）<br/>部署：GitHub Pages 靜態站"]
-    A -->|"開發：Vite dev proxy /api/taipower、/api/moenv<br/>正式：僅直連有開放 CORS 的來源"| B & C
+    A["client/（React + Vite）<br/>GitHub Pages 靜態站"]
+    A -->|"Socket.IO 即時推播<br/>GET /taipower/load-para"| B
+    A -->|"瀏覽器直連（上游有開放 CORS）"| C
+    A -.->|"僅開發環境：Vite dev proxy"| D
 
-    B["server/（Express + Socket.IO）<br/>僅開發環境啟動，未部署<br/>· 模擬設備艦隊與電網頻率推播<br/>· /taipower/load-para 代抓"]
-    C["外部公開資料 API<br/>· 環境部 AQI（有開放 CORS）<br/>· 台電機組出力／供需摘要（無 CORS）"]
+    B["server/（Express + Socket.IO）<br/>容器化部署於 Cloud Run<br/>· 模擬設備艦隊與電網頻率推播<br/>· 代抓台電供需摘要"]
+    C["環境部 AQI<br/>data.moenv.gov.tw"]
+    D["台電機組出力明細<br/>service.taipower.com.tw<br/>（無 CORS，正式環境取不到）"]
 ```
 
-- `server/` 是純記憶體的模擬服務，**沒有資料庫**，只做兩件事：用 Socket.IO 推播模擬的設備狀態與電網頻率，以及代抓 Vite dev proxy 打不通的台電供需摘要。
-- GitHub Actions 只建置並部署 `client/`，`server/` 不會上線。因此正式環境只能直連本身有回 CORS 標頭的來源——環境部 AQI 可以，台電兩個端點不行。這是已知的架構取捨，不是疏漏；細節見 [CLAUDE.md](CLAUDE.md)。
+- `server/` 是純記憶體的模擬服務，**沒有資料庫**，重啟即歸零。只做兩件事：用 Socket.IO 推播模擬的設備狀態與電網頻率，以及代抓瀏覽器打不通的台電供需摘要。
+- `server/` 以 `--max-instances=1`、`--min-instances=0` 跑在 Cloud Run 上：沒人連線時縮到零（不計費，第一次連上需要幾秒喚醒），且刻意只開一個 instance——模擬艦隊是行程內狀態，多開會讓不同使用者看到不同資料。
+- 台電機組出力明細（`service.taipower.com.tw`）上游完全沒有回 CORS 標頭，目前只在開發環境經 Vite proxy 取得，線上取不到。這是已知的取捨，不是疏漏；判斷流程見 [CLAUDE.md](CLAUDE.md)。
 
 ## 快速開始
 
@@ -49,23 +53,46 @@ pnpm dev:server
 
 ## 部署
 
-推送到 `main` 且異動 `client/**` 時，[deploy-gh-pages.yml](.github/workflows/deploy-gh-pages.yml) 會自動建置 `client/` 並發布到 GitHub Pages。
+兩個 package 各有一條獨立的 workflow，依異動路徑分別觸發。
 
-建置時注入的 secrets（repo Settings → Secrets and variables → Actions）：
+| 產物 | Workflow | 目的地 | 觸發路徑 |
+|---|---|---|---|
+| `client/` | [deploy-client-pages.yml](.github/workflows/deploy-client-pages.yml) | GitHub Pages | `client/**` |
+| `server/` | [deploy-cloud-run.yml](.github/workflows/deploy-cloud-run.yml) | Cloud Run | `server/**` |
 
-| 名稱 | 用途 |
-|---|---|
-| `VITE_MOENV_API_KEY` | 環境部開放資料 API 金鑰 |
-| `VITE_GOOGLE_MAPS_API_KEY` | 地圖頁 |
-| `VITE_GOOGLE_MAPS_MAP_ID` | 地圖頁（Advanced Marker 需要向量地圖） |
+後端這條走完整的容器流程，四個 GCP 服務各司其職：
 
-金鑰的申請與限制設定步驟見 [client/README.md](client/README.md)。
+```mermaid
+flowchart LR
+    G["push to main<br/>（server/** 有異動）"] --> H["GitHub Actions<br/>Workload Identity Federation<br/>換取短期憑證"]
+    H --> I["Cloud Build<br/>依 server/cloudbuild.yaml<br/>docker build"]
+    I --> J["Artifact Registry<br/>存放映像"]
+    J --> K["Cloud Run<br/>執行容器<br/>自動 HTTPS、縮到零"]
+    K --> L["Cloud Logging<br/>收結構化 log"]
+```
+
+GitHub 這側要設定的東西（repo Settings → Secrets and variables → Actions）：
+
+| 類型 | 名稱 | 用途 |
+|---|---|---|
+| Secret | `VITE_MOENV_API_KEY` | 環境部開放資料 API 金鑰 |
+| Secret | `VITE_GOOGLE_MAPS_API_KEY` | 地圖頁 |
+| Secret | `VITE_GOOGLE_MAPS_MAP_ID` | 地圖頁（Advanced Marker 需要向量地圖） |
+| Secret | `GCP_WIF_PROVIDER` | Workload Identity Federation provider 資源名稱 |
+| Secret | `GCP_SERVICE_ACCOUNT` | 部署用 service account |
+| Variable | `GCP_PROJECT_ID` | GCP 專案 ID |
+| Variable | `VITE_SERVER_URL` | Cloud Run 的 `*.run.app` 網址，前端據此連後端 |
+| Variable | `CLIENT_ORIGIN` | 選填，後端的 CORS 白名單；預設 `https://usyuan.github.io` |
+
+- 前端金鑰的申請與限制設定步驟見 [client/README.md](client/README.md)。
+- GCP 那側的一次性設定、免費額度與成本守則見 [docs/gcp-deploy.md](docs/gcp-deploy.md)。**整條線可以完全落在 GCP 免費額度內**，但有幾個參數碰了就會開始計費，該文件有列。
+- 改 `VITE_SERVER_URL` 不會自動觸發前端重新建置，要手動重跑一次 Pages 的 workflow。
 
 ## 專案結構
 
 ```
-client/     React 19 + Vite 前端（唯一會被部署的產物）
-server/     Express + Socket.IO 模擬後端，僅開發用
+client/     React 19 + Vite 前端，部署到 GitHub Pages
+server/     Express + Socket.IO 模擬後端，容器化部署到 Cloud Run
 docs/       開發歷程與決策紀錄
 ```
 
@@ -76,3 +103,4 @@ docs/       開發歷程與決策紀錄
 | [server/README.md](server/README.md) | 後端職責、端點與模擬資料行為 |
 | [server/CLAUDE.md](server/CLAUDE.md) | 後端開發參考：事件契約、代理限制、模擬資料行為 |
 | [CLAUDE.md](CLAUDE.md) | 跨 package 的開發參考 |
+| [docs/gcp-deploy.md](docs/gcp-deploy.md) | 後端部署：GCP 一次性設定、Docker 流程、免費額度與成本守則 |
