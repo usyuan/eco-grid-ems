@@ -1,0 +1,23 @@
+# `gcloud builds submit` 上傳原始碼時用的排除清單。
+#
+# gcloud 預設只讀「上傳來源根目錄」的 .gcloudignore，放在 server/ 底下它看不到，
+# 所以呼叫端必須明確帶 --ignore-file server/.gcloudignore（見 deploy-cloud-run.yml）。
+# 漏了那個參數 gcloud 會改用 .gitignore 生成一份，client/ 與 docs/ 就會跟著被上傳。
+#
+# 規則相對於上傳來源根目錄，也就是 repo 根。內容刻意與 Dockerfile.dockerignore 一致：
+# 上傳的東西越少，build 越快、Cloud Storage 暫存越小。
+
+.git
+.github
+.claude
+**/.claude
+**/node_modules
+**/dist
+**/*.md
+docs
+
+**/.env
+**/.env.*
+
+# client/ 跟這條流程完全無關，整包排除
+client

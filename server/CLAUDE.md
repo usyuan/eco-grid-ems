@@ -2,7 +2,31 @@
 
 職責、端點與執行方式見 [README.md](README.md)；跨 package 的規則見 [根 CLAUDE.md](../CLAUDE.md)。
 
-**這個服務不會被部署**，只在開發環境跑。它的存在是為了讓前端有即時資料可以展示，以及代抓前端拿不到的外部 API——不要往裡面加正式環境會依賴的功能。
+這個服務**會以容器部署到 Cloud Run**（設定與流程見 [docs/gcp-deploy.md](../docs/gcp-deploy.md)），但它仍然是模擬服務：純記憶體、沒有資料庫、重啟即歸零。上線不代表它變成正式後端——不要往裡面加需要持久化或水平擴充的功能。
+
+## 部署設定檔都在 server/，但裡面的路徑相對於 repo 根目錄
+
+`cloudbuild.yaml`、`Dockerfile`、`Dockerfile.dockerignore`、`.gcloudignore` 四份都放在這個資料夾，因為它們只服務 `server/` 的部署。但**它們的內容仍以 repo 根目錄為基準**——`server/Dockerfile` 需要根目錄的 `pnpm-lock.yaml`，所以 build context 與上傳來源都必須是 repo 根。看到 `--file=server/Dockerfile` 搭配 context `.` 不要「順手修正」成相對 `server/` 的寫法。
+
+這個擺法有兩個非預設行為，改動時務必留意，兩個壞掉時**都不會報錯**：
+
+| 檔案 | 為什麼能放這裡 | 少了什麼就靜默失效 |
+|---|---|---|
+| `Dockerfile.dockerignore` | BuildKit 支援「與 Dockerfile 同層、以 Dockerfile 檔名為前綴」的 ignore 檔 | 檔名改成 `.dockerignore` 就完全不會被讀；經典 builder 也不認，所以 `cloudbuild.yaml` 的 build step 必須留著 `DOCKER_BUILDKIT=1` |
+| `.gcloudignore` | `gcloud builds submit` 的 `--ignore-file` 可以指定位置 | workflow 少帶 `--ignore-file server/.gcloudignore`，gcloud 會改用 `.gitignore` 生成一份，`client/` 與 `docs/` 就會一起被上傳 |
+
+## Cloud Run 上多出來的限制
+
+- **`--max-instances=1` 是刻意的**。模擬艦隊是行程內狀態，開第二個 instance 會讓不同使用者看到不同的設備清單與告警。要放寬得先有共用狀態（Socket.IO 的 Redis adapter 之類），不是改個數字而已。
+- **沒人連線時計時器會停擺**。Cloud Run 預設在請求以外把 CPU 節流到趨近於零，`setInterval` 不會準時跑。這是預期行為（沒人在看就不該計費），不要用 `--no-cpu-throttling` 去「修」它——那會切成 instance-based 計費，閒置也算錢，免費額度很快就沒了。
+- **WebSocket 最多撐 60 分鐘**。Cloud Run 把 WebSocket 當成長時間請求，`--timeout=3600` 已經是上限，到點會斷線；前端 `lib/socket.ts` 本來就設了無限重連，不需要額外處理。
+- **`PORT` 與 `CLIENT_ORIGIN` 由環境決定**。`PORT` 是 Cloud Run 指定的（8080），不能寫死；`CLIENT_ORIGIN` 改吃逗號分隔的清單，正式環境放 GitHub Pages 的網域。
+
+## log 要印成單行 JSON
+
+Cloud Run 把容器 stdout 的每一行當一筆 log entry 送進 Cloud Logging。純文字會全部被歸成 `severity=DEFAULT`，在 Logs Explorer 沒辦法按嚴重性篩；[src/logger.ts](src/logger.ts) 因此在 `NODE_ENV=production` 時把每筆 log 印成**單行** JSON。
+
+**不要用 `JSON.stringify` 的縮排參數**——Cloud Logging 以換行切分 entry，多行會被拆成好幾筆互不相干的紀錄。新增 log 一律走 `log.info` / `log.warn` / `log.error`，不要直接 `console.log`。
 
 ## Socket 事件契約有兩份型別定義
 

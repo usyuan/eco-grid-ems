@@ -20,6 +20,25 @@ pnpm --filter client build    # tsc -b && vite build
 pnpm --filter <pkg> <script>  # 針對單一 package
 ```
 
+容器（build context 是 repo 根目錄，不是 `server/`）：
+
+```bash
+docker build -f server/Dockerfile -t eco-grid-server .
+```
+
+## 部署
+
+兩個 package 各走各的 workflow，互不相干：
+
+| 產物 | Workflow | 目的地 | 觸發路徑 |
+|---|---|---|---|
+| `client/` | [deploy-client-pages.yml](.github/workflows/deploy-client-pages.yml) | GitHub Pages | `client/**` |
+| `server/` | [deploy-cloud-run.yml](.github/workflows/deploy-cloud-run.yml) | Cloud Build → Artifact Registry → Cloud Run | `server/**` |
+
+前端要連上後端，靠的是 repo variable `VITE_SERVER_URL`（Cloud Run 的 `*.run.app` 網址）在建置時注入。**改這個 variable 不會自動觸發前端重新建置**，要手動重跑 Pages 的 workflow。
+
+GCP 一次性設定、免費額度與成本守則見 [docs/gcp-deploy.md](docs/gcp-deploy.md)——Cloud Run 的瓶頸是 WebSocket 連線時間（約 50 小時／月），不是請求數，動 Cloud Run 參數前先讀那一節。
+
 ## 慣例
 
 - 回覆與 git commit 訊息一律用繁體中文。
@@ -27,11 +46,11 @@ pnpm --filter <pkg> <script>  # 針對單一 package
 
 ## 新增外部資料源時的決策流程
 
-正式環境是 GitHub Pages 純靜態站，**`server/` 不會被部署**，所以瀏覽器只能直連本身有回 `Access-Control-Allow-Origin` 的來源。加新的外部 API 前先照這個順序判斷：
+正式環境的前端是 GitHub Pages 純靜態站，`server/` 則以容器部署在 Cloud Run。因此瀏覽器拿得到的資料只有兩種：本身有回 `Access-Control-Allow-Origin` 的來源，或經 `server/` 代抓。加新的外部 API 前先照這個順序判斷：
 
 1. **測 CORS**：`curl -I` 看有沒有 `Access-Control-Allow-Origin`。有 → 直接在 `.env.production` 加 `VITE_*_BASE_URL` 走直連，開發環境同樣可直連。
-2. **沒有 CORS** → 開發環境在 [client/vite.config.ts](client/vite.config.ts) 加 `server.proxy` 條目；正式環境無解，要在 README 明講這是已知限制。
+2. **沒有 CORS** → 開發環境在 [client/vite.config.ts](client/vite.config.ts) 加 `server.proxy` 條目；正式環境要另外在 `server/` 開一支代抓端點才會通，只加 Vite proxy 的話線上是 404。
 3. **Vite proxy 也打不通**（回 404 或假維護頁，但 `curl` 正常）→ 是對方 WAF 在擋 proxy 的連線特徵。先用 Node 原生 `fetch()` 測一次確認端點沒壞，再比照 [server/src/taipowerProxy.ts](server/src/taipowerProxy.ts) 改由後端代抓，**不要在 Vite proxy 上硬解**。完整案例見 [client/CLAUDE.md](client/CLAUDE.md)。
 
-現況：環境部 `data.moenv.gov.tw` 走第 1 條；台電 `service.taipower.com.tw` 走第 2 條（正式環境不可用）；台電 `www.taipower.com.tw` 走第 3 條。
+現況：環境部 `data.moenv.gov.tw` 走第 1 條；台電 `service.taipower.com.tw` 走第 2 條，但只加了 Vite proxy、沒在 `server/` 開對應端點，**正式環境仍取不到**；台電 `www.taipower.com.tw` 走第 3 條，由 `server/` 代抓，正式環境可用。
 

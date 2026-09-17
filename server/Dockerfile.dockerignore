@@ -1,0 +1,23 @@
+# 這是「Dockerfile 專屬」的 ignore 檔。檔名必須是 <Dockerfile 檔名>.dockerignore 且與
+# Dockerfile 同一層才會被讀到——改叫 server/.dockerignore 完全不生效，而且不會報錯。
+# 只有 BuildKit 支援這個命名（本機 Docker Desktop 預設就開；Cloud Build 那側由
+# server/cloudbuild.yaml 明確設 DOCKER_BUILDKIT=1）。
+#
+# 規則本身相對於 **build context 根目錄**，也就是 repo 根，不是 server/（見 Dockerfile 開頭）。
+# 留下來的只有：根目錄的 pnpm-workspace.yaml / pnpm-lock.yaml / package.json，加上 server/。
+
+.git
+.github
+.claude
+**/.claude
+**/node_modules
+**/dist
+**/*.md
+docs
+
+# 金鑰絕對不要進 build context（映像層是可以被解出來的）
+**/.env
+**/.env.*
+
+# client/ 跟這條流程完全無關，整包排除
+client

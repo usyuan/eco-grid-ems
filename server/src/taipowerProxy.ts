@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { log } from "./logger.js";
 
 const TAIPOWER_LOAD_PARA_URL = "https://www.taipower.com.tw/d006/loadGraph/loadGraph/data/loadpara.json";
 
@@ -20,12 +21,16 @@ taipowerRouter.get("/load-para", async (_req, res) => {
   try {
     const upstream = await fetch(TAIPOWER_LOAD_PARA_URL, { headers: BROWSER_LIKE_HEADERS });
     if (!upstream.ok) {
+      // 被 WAF 擋掉時回的是 200 的假維護頁而不是錯誤碼，所以這裡記到的是「其他」異常；
+      // 真正要靠 Cloud Logging 察覺假維護頁，得看下游 parseLoadPara 解析失敗的紀錄。
+      log.warn("台電上游回應異常", { status: upstream.status, url: TAIPOWER_LOAD_PARA_URL });
       res.status(502).json({ error: `台電上游回應異常 (${upstream.status})` });
       return;
     }
     const data = await upstream.json();
     res.json(data);
   } catch (err) {
+    log.error("無法連線至台電資料來源", { detail: String(err), url: TAIPOWER_LOAD_PARA_URL });
     res.status(502).json({ error: "無法連線至台電資料來源", detail: String(err) });
   }
 });

@@ -7,7 +7,7 @@ on:
       - 'client/**'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
-      - '.github/workflows/deploy-gh-pages.yml'
+      - '.github/workflows/deploy-client-pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -40,6 +40,12 @@ jobs:
           # 只允許本站網域。未設定時地圖頁會顯示提示，不影響其他頁面建置。
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
           VITE_GOOGLE_MAPS_MAP_ID: ${{ secrets.VITE_GOOGLE_MAPS_MAP_ID }}
+          # Cloud Run 上的 server/ 網址（deploy-cloud-run.yml 部署完會印在 job summary）。
+          # Socket.IO 與台電代抓打的是同一個服務，所以共用一個 repo variable。
+          # 不是機密，用 variable 不用 secret；沒設的話前端會退回 localhost:4000，
+          # 線上就是現況——即時資料不會更新，但其他頁面照常。
+          VITE_SOCKET_URL: ${{ vars.VITE_SERVER_URL }}
+          VITE_API_BASE_URL: ${{ vars.VITE_SERVER_URL }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

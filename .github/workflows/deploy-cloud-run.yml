@@ -1,0 +1,99 @@
+name: Deploy server to Cloud Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # cloudbuild.yaml、Dockerfile.dockerignore、.gcloudignore 都在 server/ 底下，這條全包了
+      - 'server/**'
+      # 映像裝到哪些版本由這三份決定，動到也要重建
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/deploy-cloud-run.yml'
+  workflow_dispatch:
+
+# google-github-actions/auth 要靠 id-token: write 才拿得到 GitHub 的 OIDC token；
+# 少了這行 Workload Identity Federation 會以 "unable to get ACTIONS_ID_TOKEN_REQUEST_URL" 失敗。
+permissions:
+  contents: read
+  id-token: write
+
+# Cloud Run 的流量只會指向最後一次部署，同時跑兩個 build 沒意義還會互相覆蓋
+concurrency:
+  group: cloud-run
+  cancel-in-progress: true
+
+env:
+  SERVICE: eco-grid-server
+  # Cloud Run 免費額度按 Tier 1 地區計價，對外流量的免費額度也只算北美——
+  # 換成 asia-east1 延遲會變好，但兩項免費額度都拿不到。
+  REGION: us-central1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 設定不全時直接失敗並講清楚缺什麼，比讓 auth 拋一串看不懂的錯好追
+      - name: 檢查 GCP 設定是否齊全
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+        run: |
+          missing=""
+          [ -n "$GCP_PROJECT_ID" ] || missing="$missing vars.GCP_PROJECT_ID"
+          [ -n "$GCP_WIF_PROVIDER" ] || missing="$missing secrets.GCP_WIF_PROVIDER"
+          [ -n "$GCP_SERVICE_ACCOUNT" ] || missing="$missing secrets.GCP_SERVICE_ACCOUNT"
+          if [ -n "$missing" ]; then
+            echo "::error::缺少 GCP 設定：$missing —— 設定步驟見 docs/gcp-deploy.md"
+            exit 1
+          fi
+
+      # Workload Identity Federation：不在 repo 裡存 service account 金鑰，
+      # 改用 GitHub 的 OIDC token 去換一組幾十分鐘就過期的憑證。
+      # provider 與 service_account 兩個值由 docs/gcp-deploy.md 的一次性設定產出。
+      - name: 取得 GCP 憑證
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: 安裝 gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      # Cloud Build 一次做完 build → push 到 Artifact Registry → 部署到 Cloud Run，
+      # 三步的定義都在 server/cloudbuild.yaml。這裡只負責把原始碼送上去並覆寫幾個 substitution。
+      #
+      # --ignore-file 不能省：gcloud 預設只找上傳來源根目錄的 .gcloudignore，
+      # 我們的那份在 server/ 底下，不指定的話會退回用 .gitignore 生成一份。
+      - name: 建置、推送與部署
+        env:
+          CLIENT_ORIGIN: ${{ vars.CLIENT_ORIGIN }}
+        run: |
+          subs="_REGION=${REGION},_SERVICE=${SERVICE},_IMAGE_TAG=${GITHUB_SHA::7}"
+          # 沒設就沿用 cloudbuild.yaml 裡的預設值
+          if [ -n "$CLIENT_ORIGIN" ]; then
+            subs="${subs},_CLIENT_ORIGIN=${CLIENT_ORIGIN}"
+          fi
+          gcloud builds submit \
+            --config server/cloudbuild.yaml \
+            --ignore-file server/.gcloudignore \
+            --substitutions "$subs"
+
+      - name: 輸出服務網址
+        run: |
+          url=$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')
+          {
+            echo "### Cloud Run 部署完成"
+            echo ""
+            echo "- 服務網址：$url"
+            echo "- 健康檢查：$url/health"
+            echo "- 服務 log：Cloud Logging 篩 \`resource.type=\"cloud_run_revision\"\`"
+            echo ""
+            echo "前端要連上這個服務，需將 repo variable \`VITE_SERVER_URL\` 設為上面的網址，"
+            echo "再手動重跑一次 **Deploy client to GitHub Pages**（改 variable 不會自動觸發建置）。"
+          } >> "$GITHUB_STEP_SUMMARY"

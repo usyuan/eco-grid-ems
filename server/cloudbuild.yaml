@@ -1,0 +1,80 @@
+# Cloud Build：建置映像 → 推進 Artifact Registry → 部署到 Cloud Run。
+#
+# 這個檔案放在 server/ 底下，但**裡面所有路徑都相對於 repo 根目錄**——Cloud Build 會把
+# 上傳來源的根解開到 /workspace，跟 config 檔自己在哪無關。所以是 `--file=server/Dockerfile`
+# 加上 context `.`，不是 `Dockerfile` 加 `server`。
+#
+# 執行方式（一律從 repo 根目錄）：
+#   gcloud builds submit --config server/cloudbuild.yaml --ignore-file server/.gcloudignore
+#
+# GCP 這側的一次性設定（啟用 API、建 repository、Workload Identity Federation、權限）
+# 見 docs/gcp-deploy.md。
+
+substitutions:
+  _REGION: us-central1
+  _REPOSITORY: eco-grid
+  _SERVICE: eco-grid-server
+  # GitHub Pages 的 Origin 只到網域，不含 /eco-grid-ems/ 這層路徑
+  _CLIENT_ORIGIN: https://usyuan.github.io
+  # 內建的 $SHORT_SHA 只有「建置觸發器」才會帶值，用 gcloud builds submit 送上來是空的
+  # （tag 會變成非法字串直接失敗），所以改由 workflow 明確傳 commit SHA 進來。
+  _IMAGE_TAG: manual
+
+steps:
+  # :${_IMAGE_TAG} 是實際部署的版本，:latest 只是給人看的指標
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    # 「Dockerfile 專屬」的 ignore 檔（server/Dockerfile.dockerignore）只有 BuildKit 認得，
+    # 經典 builder 只讀 context 根目錄那一份。這個 builder 映像預設不一定開 BuildKit，
+    # 所以明確打開——不然 ignore 規則會靜默失效，不會報錯。
+    env:
+      - DOCKER_BUILDKIT=1
+    args:
+      - build
+      - --file=server/Dockerfile
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:${_IMAGE_TAG}
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:latest
+      - .
+
+  # 不用 cloudbuild 的 `images:` 欄位，因為那是「所有 step 跑完之後」才推送，
+  # 下面的 deploy step 會先跑，屆時 Artifact Registry 裡還沒有這個 tag。
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - --all-tags
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:${_IMAGE_TAG}
+      - --region=${_REGION}
+      - --platform=managed
+      # 公開服務，前端是靜態站沒辦法帶 IAM 憑證
+      - --allow-unauthenticated
+      # 小於 1 vCPU 會被強制 concurrency=1，長連線服務不能這樣設
+      - --cpu=1
+      - --memory=512Mi
+      # 沒人連線就縮到 0：免費額度是按「instance 活著的秒數」算，不是按請求數
+      - --min-instances=0
+      # 模擬艦隊是行程內記憶體，多 instance 會讓不同使用者看到不同狀態；順便當成本天花板
+      - --max-instances=1
+      - --concurrency=80
+      # Cloud Run 請求逾時上限 60 分鐘；WebSocket 算長時間請求，到點會斷（前端會自動重連）
+      - --timeout=3600
+      - --set-env-vars=NODE_ENV=production,CLIENT_ORIGIN=${_CLIENT_ORIGIN}
+    # 注意：不要加 --no-cpu-throttling / --cpu-always-allocated，那會切成 instance-based
+    # 計費（閒置也算錢），免費額度很快就會用光。
+
+options:
+  # 用自訂 service account 又沒指定 logsBucket 時，Cloud Build 會直接拒絕執行。
+  # 改成只寫 Cloud Logging 就沒這問題，build log 也跟服務的 log 進同一個地方。
+  logging: CLOUD_LOGGING_ONLY
+  # 不要指定 machineType：免費的 2,500 build-minutes 只涵蓋預設的 e2-standard-2。
+
+timeout: 1200s
