@@ -66,7 +66,7 @@ pnpm lint      # oxlint
 | 變數 | 說明 |
 |---|---|
 | `VITE_SOCKET_URL` | 本地 `server` 的 Socket.IO 位址，預設 `http://localhost:4000` |
-| `VITE_API_BASE_URL` | 本地 `server` 的 REST 位址（台電供需摘要代抓） |
+| `VITE_API_BASE_URL` | `server` 的 REST 位址（台電供需摘要、機組出力明細代抓） |
 | `VITE_MOENV_API_KEY` | 環境部開放資料 API 金鑰 |
 | `VITE_GOOGLE_MAPS_API_KEY` | 地圖頁；未填時地圖頁顯示提示，其他頁面不受影響 |
 | `VITE_GOOGLE_MAPS_MAP_ID` | 地圖頁；Advanced Marker 需要向量地圖 |

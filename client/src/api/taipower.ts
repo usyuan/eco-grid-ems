@@ -20,6 +20,9 @@ async function fetchJson<T>(url: string): Promise<T> {
  * 目前瞬時電力供需摘要（尖峰預測、昨日實績），非機組明細。
  * 走我們自己的後端代抓（見 server/src/taipowerProxy.ts），不透過 Vite dev proxy 直連——
  * www.taipower.com.tw 的 WAF 會擋掉 Vite proxy 的請求，詳見 client/CLAUDE.md。
+ *
+ * 正式環境這支一律失敗（後端回 502）：同一個 WAF 也封鎖雲端機房 IP，Cloud Run 打過去固定 403。
+ * 只有本機開發時（server 從住宅網路發出）拿得到資料。
  */
 export function usePowerSupply() {
   return useQuery({
@@ -31,15 +34,13 @@ export function usePowerSupply() {
 
 /**
  * 各機組即時出力明細（含太陽能、風力等再生能源分類）。
- * 走 Vite dev proxy（見 vite.config.ts）代抓 service.taipower.com.tw。
- * 這支上游完全沒有回 Access-Control-Allow-Origin，瀏覽器無法直接跨網域呼叫，
- * 因此純靜態環境（如 GitHub Pages，沒有部署 server/）目前無法取得這份資料。
+ * 上游 service.taipower.com.tw 完全沒有回 Access-Control-Allow-Origin，瀏覽器無法直連，
+ * 所以走我們自己的後端代抓（見 server/src/taipowerProxy.ts）。開發與正式環境同一條路。
  */
 export function useGeneratorUnits() {
   return useQuery({
     queryKey: ["generatorUnits"],
-    queryFn: () =>
-      fetchJson<TaipowerGeneratorUnitsResponse>("/api/taipower/data/opendata/apply/file/d006001/001.json"),
+    queryFn: () => fetchJson<TaipowerGeneratorUnitsResponse>(`${API_BASE_URL}/taipower/generator-units`),
     refetchInterval: 300_000,
   });
 }
