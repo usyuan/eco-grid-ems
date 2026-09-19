@@ -4,7 +4,7 @@
 
 線上展示：<https://usyuan.github.io/eco-grid-ems/>
 
-> 展示站的即時資料（電網頻率、設備、告警）來自部署在 Cloud Run 的模擬後端。**需先完成 [docs/gcp-deploy.md](docs/gcp-deploy.md) 的一次性設定、並把服務網址填進 repo variable `VITE_SERVER_URL`**，在那之前線上這些數字不會更新。台電機組出力明細因上游未開放 CORS，線上仍取不到；其餘功能與本機一致。原因見〈架構〉。
+> 展示站的即時資料（電網頻率、設備、告警）來自部署在 Cloud Run 的模擬後端。**需先完成 [docs/gcp-deploy.md](docs/gcp-deploy.md) 的一次性設定、並把服務網址填進 repo variable `VITE_SERVER_URL`**，在那之前線上這些數字不會更新。台電**電力供需摘要**線上取不到（台電封鎖雲端機房 IP，只有本機開發時拿得到）；其餘功能與本機一致。原因見〈架構〉。
 
 ## 功能
 
@@ -20,18 +20,20 @@
 ```mermaid
 flowchart TB
     A["client/（React + Vite）<br/>GitHub Pages 靜態站"]
-    A -->|"Socket.IO 即時推播<br/>GET /taipower/load-para"| B
+    A -->|"Socket.IO 即時推播<br/>GET /taipower/*"| B
     A -->|"瀏覽器直連（上游有開放 CORS）"| C
-    A -.->|"僅開發環境：Vite dev proxy"| D
+    B -->|"代抓（上游無 CORS）"| D
+    B -.->|"代抓；雲端機房 IP 被封鎖，僅本機開發可用"| E
 
-    B["server/（Express + Socket.IO）<br/>容器化部署於 Cloud Run<br/>· 模擬設備艦隊與電網頻率推播<br/>· 代抓台電供需摘要"]
+    B["server/（Express + Socket.IO）<br/>容器化部署於 Cloud Run<br/>· 模擬設備艦隊與電網頻率推播<br/>· 代抓台電開放資料"]
     C["環境部 AQI<br/>data.moenv.gov.tw"]
-    D["台電機組出力明細<br/>service.taipower.com.tw<br/>（無 CORS，正式環境取不到）"]
+    D["台電機組出力明細<br/>service.taipower.com.tw"]
+    E["台電電力供需摘要<br/>www.taipower.com.tw"]
 ```
 
-- `server/` 是純記憶體的模擬服務，**沒有資料庫**，重啟即歸零。只做兩件事：用 Socket.IO 推播模擬的設備狀態與電網頻率，以及代抓瀏覽器打不通的台電供需摘要。
+- `server/` 是純記憶體的模擬服務，**沒有資料庫**，重啟即歸零。只做兩件事：用 Socket.IO 推播模擬的設備狀態與電網頻率，以及代抓瀏覽器打不通的台電開放資料。
 - `server/` 以 `--max-instances=1`、`--min-instances=0` 跑在 Cloud Run 上：沒人連線時縮到零（不計費，第一次連上需要幾秒喚醒），且刻意只開一個 instance——模擬艦隊是行程內狀態，多開會讓不同使用者看到不同資料。
-- 台電機組出力明細（`service.taipower.com.tw`）上游完全沒有回 CORS 標頭，目前只在開發環境經 Vite proxy 取得，線上取不到。這是已知的取捨，不是疏漏；判斷流程見 [CLAUDE.md](CLAUDE.md)。
+- 台電電力供需摘要（`www.taipower.com.tw`）的 WAF 封鎖雲端機房 IP——實測連 GCP 台灣機房都被擋，換地區也沒用——所以只有本機開發（從住宅網路發出）拿得到，線上那張卡片會是錯誤狀態。這是已知限制，不是疏漏；判斷流程見 [CLAUDE.md](CLAUDE.md)。
 
 ## 快速開始
 

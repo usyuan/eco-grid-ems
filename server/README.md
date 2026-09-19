@@ -21,16 +21,24 @@
 
 事件與 payload 的型別定義在 [src/types.ts](src/types.ts)，完整事件表與維護注意見 [CLAUDE.md](CLAUDE.md)。
 
-### 2. 台電供需摘要代抓
+### 2. 台電開放資料代抓
 
-`www.taipower.com.tw` 的 WAF 會擋掉 Vite dev proxy 的請求，但 Node 原生 `fetch()` 正常，因此這支資料改由後端代抓。實作與原因見 [src/taipowerProxy.ts](src/taipowerProxy.ts) 的註解。
+台電兩支資料瀏覽器都拿不到，一律由後端用 Node 原生 `fetch()` 代抓後原樣轉發：
+
+| 資料 | 上游 | 為什麼要代抓 | 正式環境（Cloud Run） |
+|---|---|---|---|
+| 電力供需摘要 | `www.taipower.com.tw` | WAF 擋 Vite dev proxy 的連線指紋 | ❌ 同一個 WAF 也擋雲端機房 IP，固定 403 → 回 502 |
+| 機組出力明細 | `service.taipower.com.tw` | 上游沒有回 CORS 標頭 | ✅ 未擋雲端機房 IP（GCP 台灣機房實測 200） |
+
+實作與原因見 [src/taipowerProxy.ts](src/taipowerProxy.ts) 的註解。
 
 ## 端點
 
 | 方法 | 路徑 | 回應 |
 |---|---|---|
 | GET | `/health` | `{ status, uptime }` |
-| GET | `/taipower/load-para` | 台電電力供需摘要（原樣轉發，上游異常時回 502） |
+| GET | `/taipower/load-para` | 台電電力供需摘要（原樣轉發，上游異常時回 502；正式環境固定 502） |
+| GET | `/taipower/generator-units` | 台電機組出力明細（原樣轉發，上游異常時回 502） |
 
 Socket.IO 掛在同一個 HTTP server 上。
 

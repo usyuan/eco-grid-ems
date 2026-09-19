@@ -15,14 +15,8 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api/taipower': {
-        // 機組出力明細 (/data/opendata/apply/file/*) 只在這個 host 上，經實測校正
-        target: 'https://service.taipower.com.tw',
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api\/taipower/, ''),
-      },
-      // 電力供需摘要 (www.taipower.com.tw/d006/loadGraph/...) 改由後端代抓（見 server/src/taipowerProxy.ts），
-      // 因為該 host 的 WAF 會擋掉 Vite dev proxy 的請求，詳見 client/CLAUDE.md。
+      // 台電的兩支資料（供需摘要、機組出力明細）都改由後端代抓（見 server/src/taipowerProxy.ts），
+      // 不在這裡設 proxy：只設 dev proxy 的話正式環境會是 404，而 www.taipower.com.tw 還會擋 Vite proxy。
       '/api/moenv': {
         target: 'https://data.moenv.gov.tw',
         changeOrigin: true,

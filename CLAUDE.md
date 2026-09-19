@@ -52,5 +52,13 @@ GCP 一次性設定、免費額度與成本守則見 [docs/gcp-deploy.md](docs/g
 2. **沒有 CORS** → 開發環境在 [client/vite.config.ts](client/vite.config.ts) 加 `server.proxy` 條目；正式環境要另外在 `server/` 開一支代抓端點才會通，只加 Vite proxy 的話線上是 404。
 3. **Vite proxy 也打不通**（回 404 或假維護頁，但 `curl` 正常）→ 是對方 WAF 在擋 proxy 的連線特徵。先用 Node 原生 `fetch()` 測一次確認端點沒壞，再比照 [server/src/taipowerProxy.ts](server/src/taipowerProxy.ts) 改由後端代抓，**不要在 Vite proxy 上硬解**。完整案例見 [client/CLAUDE.md](client/CLAUDE.md)。
 
-現況：環境部 `data.moenv.gov.tw` 走第 1 條；台電 `service.taipower.com.tw` 走第 2 條，但只加了 Vite proxy、沒在 `server/` 開對應端點，**正式環境仍取不到**；台電 `www.taipower.com.tw` 走第 3 條，由 `server/` 代抓，正式環境可用。
+現況：
+
+| 來源 | 走法 | 正式環境 |
+|---|---|---|
+| 環境部 `data.moenv.gov.tw` | 第 1 條，直連 | ✅ |
+| 台電 `service.taipower.com.tw`（機組出力明細） | 第 2 條，由 `server/` 代抓 `/taipower/generator-units` | ✅ |
+| 台電 `www.taipower.com.tw`（電力供需摘要） | 第 3 條，由 `server/` 代抓 `/taipower/load-para` | ❌ 該站也封鎖雲端機房 IP，Cloud Run 打過去固定 403 |
+
+最後一列提醒一件事：**改由後端代抓不保證正式環境能用**，對方可能擋雲端機房 IP。加新來源時除了本機測試，也要在 Cloud Shell（它本身就是 GCP 機房 IP）用 `curl` 打一次；結果是 403 的話，這個來源在正式環境就無解，換地區也沒用。案例見 [client/CLAUDE.md](client/CLAUDE.md) 的〈踩坑〉。
 

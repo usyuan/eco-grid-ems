@@ -78,7 +78,7 @@ src/api/*.ts   use<Thing>() hook（react-query useQuery）
 卡片元件消費
 ```
 
-- **取資料**：開發環境走 `/api/taipower`、`/api/moenv` 兩個 Vite proxy；正式環境視來源是否開放 CORS，直連或經 `server/` 代抓。
+- **取資料**：環境部開發時走 `/api/moenv` Vite proxy、正式環境直連（有開 CORS）；台電兩支一律經 `server/` 代抓（`/taipower/load-para`、`/taipower/generator-units`），開發與正式同一條路。
 - **`parse*()`**：`parseGeneratorUnits`、`parseLoadPara` 等，理由見下方〈已知資料怪癖〉。
 - **快取設定**（`src/lib/queryClient.ts`）：`staleTime` 30s、`retry` 2、不隨視窗 focus 重抓。
 - **消費端**：`PowerSupplyCard`、`AirQualityCard`、`GeneratorMixCard`。
@@ -88,7 +88,7 @@ src/api/*.ts   use<Thing>() hook（react-query useQuery）
 
 消費開放資料前務必留意，這三點都是實測踩到的：
 
-- **台電機組出力明細**（`/api/taipower` → `service.taipower.com.tw/data/opendata/apply/file/d006001/001.json`）：`aaData` 陣列中混有「小計」列，且部分分類欄位殘留來源網頁的 HTML 標籤 → 一律透過 `parseGeneratorUnits()`（[src/api/taipower.ts](src/api/taipower.ts)）消費，不要直接迭代 `aaData`。
+- **台電機組出力明細**（`server` 的 `/taipower/generator-units` → `service.taipower.com.tw/data/opendata/apply/file/d006001/001.json`）：`aaData` 陣列中混有「小計」列，且部分分類欄位殘留來源網頁的 HTML 標籤 → 一律透過 `parseGeneratorUnits()`（[src/api/taipower.ts](src/api/taipower.ts)）消費，不要直接迭代 `aaData`。
 - **台電電力供需摘要**（`loadpara.json`）：`curr_load` 單位是「萬瓩」，換算 MW 要 ×10；`records` 陣列裡混著 4 種不同形狀的物件，要用「某欄位存不存在」判斷型別，不能用陣列索引。
 - **環境部 AQI**（`/api/moenv` → `data.moenv.gov.tw/api/v2/aqx_p_432`）：回傳的是**裸陣列**，沒有 `records` 外層包裝。
 
@@ -105,6 +105,16 @@ src/api/*.ts   use<Thing>() hook（react-query useQuery）
 **原因**：該站的 WAF／機器人偵測是針對**連線本身的特徵**（TLS handshake、HTTP 客戶端指紋）判斷，跟請求標頭無關——這支 API 完全公開，不需要任何 API Key。Node 原生 `fetch()`（undici）用同樣的 UA 打不會被擋，只有 Vite proxy 中介層會。
 
 **現行解法**：改由 [server/src/taipowerProxy.ts](../server/src/taipowerProxy.ts) 用原生 `fetch()` 代抓，前端打自己後端的 `GET /taipower/load-para`（見 [src/api/taipower.ts](src/api/taipower.ts) 的 `usePowerSupply()`）。日後遇到類似狀況的排查順序見 [根 CLAUDE.md](../CLAUDE.md)。
+
+**正式環境仍然取不到**：同一個 WAF 也封鎖雲端機房 IP。後端部署到 Cloud Run 後打這支固定 403，再以 502 回給前端，所以線上的供需摘要卡片一定是錯誤狀態。排查過程：
+
+| 從哪裡發出 | 結果 |
+|---|---|
+| 本機（台灣住宅網路），Node 原生 `fetch` | 200 |
+| Cloud Run `us-central1` | 403 |
+| GCP Cloud Shell（IP 在台灣） | 403 |
+
+最後一列排除了「境外封鎖」——換成台灣機房也一樣被擋，所以搬地區沒有用。任何雲端平台（含 GitHub Actions runner）的 IP 應該都會被同樣對待。同一家的 `service.taipower.com.tw`（機組出力明細）沒有這個限制，Cloud Shell 實測 200。
 
 ### shadcn CLI 報 `Could not load the workspace config`
 

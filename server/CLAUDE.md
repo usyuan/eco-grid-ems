@@ -51,6 +51,11 @@ Cloud Run 把容器 stdout 的每一行當一筆 log entry 送進 Cloud Logging�
 
 完整的排查紀錄見 [client/CLAUDE.md](../client/CLAUDE.md) 的〈踩坑〉。
 
+另外兩件改動時要知道的事：
+
+- **`/load-para` 在 Cloud Run 上固定失敗**。`www.taipower.com.tw` 的 WAF 除了認連線指紋，也封鎖雲端機房 IP——實測從 GCP **台灣**機房一樣 403，所以不是境外封鎖，把 Cloud Run 搬到 `asia-east1` 沒有用。別為了修它去換地區（會失去免費額度）。`/generator-units` 打的 `service.taipower.com.tw` 沒有這個限制。
+- **不要把 `upstream.json()` 改成 `text()` + `JSON.parse`**。`001.json` 開頭帶 UTF-8 BOM，`Response.json()` 依規範會先剝掉 BOM，自己 `JSON.parse` 會在第一個字元炸掉。
+
 ## 模擬資料是行程內記憶體
 
 沒有資料庫也沒有持久化。重啟後設備 id（`EQ-0001` 起跳的流水號）與所有告警全部重來，前端對此沒有任何持久化預期，不需要為了「保留狀態」加儲存層。
