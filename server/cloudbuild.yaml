@@ -5,14 +5,19 @@
 # 加上 context `.`，不是 `Dockerfile` 加 `server`。
 #
 # 執行方式（一律從 repo 根目錄）：
-#   gcloud builds submit --config server/cloudbuild.yaml --ignore-file server/.gcloudignore
+#   gcloud builds submit --config server/cloudbuild.yaml --ignore-file server/.gcloudignore \
+#     --service-account projects/<PROJECT_ID>/serviceAccounts/github-deployer@<PROJECT_ID>.iam.gserviceaccount.com
+#
+# --service-account 決定「誰來執行這些步驟」。不帶的話 Cloud Build 會用 Compute Engine 預設帳戶，
+# 那是整個專案共用的身分，不該拿到部署權限。刻意不寫在本檔的 serviceAccount 欄位：
+# 官方文件沒說那個欄位支援 $PROJECT_ID 替換，由呼叫端傳入比較確定。
 #
 # GCP 這側的一次性設定（啟用 API、建 repository、Workload Identity Federation、權限）
 # 見 docs/gcp-deploy.md。
 
 substitutions:
   _REGION: us-central1
-  _REPOSITORY: eco-grid
+  _REPOSITORY: eco-grid-ems
   _SERVICE: eco-grid-server
   # GitHub Pages 的 Origin 只到網域，不含 /eco-grid-ems/ 這層路徑
   _CLIENT_ORIGIN: https://usyuan.github.io
@@ -68,12 +73,15 @@ steps:
       # Cloud Run 請求逾時上限 60 分鐘；WebSocket 算長時間請求，到點會斷（前端會自動重連）
       - --timeout=3600
       - --set-env-vars=NODE_ENV=production,CLIENT_ORIGIN=${_CLIENT_ORIGIN}
+      # 服務執行時的身分。伺服器不呼叫任何 GCP API，這個帳戶刻意零權限；不指定的話會落到
+      # Compute Engine 預設帳戶，對外開放的伺服器就會跟著拿到那個帳戶身上的所有權限。
+      - --service-account=eco-grid-runtime@$PROJECT_ID.iam.gserviceaccount.com
     # 注意：不要加 --no-cpu-throttling / --cpu-always-allocated，那會切成 instance-based
     # 計費（閒置也算錢），免費額度很快就會用光。
 
 options:
-  # 用自訂 service account 又沒指定 logsBucket 時，Cloud Build 會直接拒絕執行。
-  # 改成只寫 Cloud Logging 就沒這問題，build log 也跟服務的 log 進同一個地方。
+  # 以自訂帳戶（github-deployer）執行時這行是必要的：不能用 Google 代管的預設 log bucket，
+  # 沒指定的話 Cloud Build 直接拒絕執行。只寫 Cloud Logging 最省事，build log 也跟服務的 log 進同一處。
   logging: CLOUD_LOGGING_ONLY
   # 不要指定 machineType：免費的 2,500 build-minutes 只涵蓋預設的 e2-standard-2。
 

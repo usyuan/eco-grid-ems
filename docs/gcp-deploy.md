@@ -23,7 +23,7 @@
 ```bash
 export PROJECT_ID="你的專案 ID"
 export REGION="us-central1"
-export REPOSITORY="eco-grid"
+export REPOSITORY="eco-grid-ems"
 export SERVICE="eco-grid-server"
 export GITHUB_REPO="usyuan/eco-grid-ems"
 
@@ -77,52 +77,77 @@ gcloud artifacts repositories set-cleanup-policies "$REPOSITORY" \
 
 （`--no-dry-run` 一定要加，否則政策只會記錄「本來會刪什麼」而不實際刪。）
 
-## 3. 授權 Cloud Build
+## 3. 建立兩個 service account
 
-實際做 `docker push` 與 `gcloud run deploy` 的是 Cloud Build 的預設 service account。
-新專案用的是 Compute Engine 預設 SA，較早建立的專案是 `<專案編號>@cloudbuild.gserviceaccount.com`，
-兩個都授權最省事（不存在的那個會失敗，直接忽略）：
+| 帳戶 | 身分 | 權限 |
+|---|---|---|
+| `github-deployer` | GitHub Actions 送出建置，**同時也是 Cloud Build 執行步驟的身分** | 部署需要的全部（§4） |
+| `eco-grid-runtime` | Cloud Run 服務執行時的身分 | **刻意零權限** |
 
-```bash
-for SA in "${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
-          "${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"; do
-  for ROLE in roles/artifactregistry.writer \
-              roles/run.admin \
-              roles/iam.serviceAccountUser \
-              roles/logging.logWriter; do
-    gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-      --member="serviceAccount:${SA}" --role="$ROLE" \
-      --condition=None --quiet || true
-  done
-done
-```
+為什麼不用 Cloud Build 預設的執行帳戶：沒特別指定時，Cloud Build 會用專案的 **Compute Engine
+預設帳戶**執行，而 Cloud Run 服務沒指定身分時**也**會用它。給它部署權限的結果，是對外開放的那支
+伺服器也拿到「重新部署自己、推任意映像」的能力。所以兩者都明確指定（見 `server/cloudbuild.yaml`
+與 workflow 的 `--service-account`），Compute Engine 預設帳戶完全不碰。
 
-| 角色 | 為什麼需要 |
-|---|---|
-| `artifactregistry.writer` | 推映像 |
-| `run.admin` | 建立／更新 Cloud Run 服務 |
-| `iam.serviceAccountUser` | Cloud Run 服務本身要以某個 SA 身分執行，部署者必須能「代表」它 |
-| `logging.logWriter` | `server/cloudbuild.yaml` 設了 `logging: CLOUD_LOGGING_ONLY`，build log 直接寫進 Cloud Logging |
-
-## 4. 建立 GitHub Actions 用的 service account
+另外，「送出建置的帳戶」與「執行建置的帳戶」分開並不會帶來多少保護——能送出建置的人，
+就能叫 Cloud Build 以執行帳戶的權限跑任意步驟。所以直接合併成一個，把真正的界線畫在
+「部署者」與「被部署的程式」之間。
 
 ```bash
+# 已在 Console 建過 github-deployer 的話，這行會回報已存在，略過即可
 gcloud iam service-accounts create github-deployer \
-  --display-name="GitHub Actions 部署用"
+  --display-name="GitHub Actions 部署與 Cloud Build 執行"
+
+gcloud iam service-accounts create eco-grid-runtime \
+  --display-name="Cloud Run 執行身分（零權限）"
 
 export DEPLOYER="github-deployer@${PROJECT_ID}.iam.gserviceaccount.com"
+export RUNTIME="eco-grid-runtime@${PROJECT_ID}.iam.gserviceaccount.com"
+```
 
+`eco-grid-runtime` 建完就好，**不要給它任何角色**。伺服器只做模擬推播與代抓台電公開資料，
+不呼叫任何 GCP API。
+
+## 4. 授權 github-deployer
+
+專案層級的角色：
+
+```bash
 for ROLE in roles/cloudbuild.builds.editor \
             roles/storage.admin \
-            roles/run.viewer; do
+            roles/artifactregistry.writer \
+            roles/run.admin \
+            roles/logging.logWriter; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:${DEPLOYER}" --role="$ROLE" --condition=None
 done
 ```
 
-`storage.admin` 是因為 `gcloud builds submit` 要把原始碼打包上傳到 `gs://${PROJECT_ID}_cloudbuild`
-這個暫存 bucket（第一次會自動建立）。bucket 建好之後可以收斂成只對該 bucket 的
-`roles/storage.objectAdmin`。`run.viewer` 是給 workflow 最後那步讀服務網址用的。
+「服務帳戶使用者」**綁在兩個帳戶上**，不給專案層級：
+
+```bash
+for SA in "$DEPLOYER" "$RUNTIME"; do
+  gcloud iam service-accounts add-iam-policy-binding "$SA" \
+    --member="serviceAccount:${DEPLOYER}" --role=roles/iam.serviceAccountUser
+done
+```
+
+| 角色 | Console 名稱 | 為什麼需要 |
+|---|---|---|
+| `cloudbuild.builds.editor` | Cloud Build 編輯者 | 送出建置 |
+| `storage.admin` | Storage 管理員 | `gcloud builds submit` 要把原始碼上傳到 `gs://${PROJECT_ID}_cloudbuild`（第一次自動建立），執行建置時再讀回來。bucket 建好後可收斂成只對該 bucket 的 `storage.objectAdmin` |
+| `artifactregistry.writer` | Artifact Registry 寫入者 | 推映像 |
+| `run.admin` | Cloud Run 管理員 | 部署服務。`--allow-unauthenticated` 要修改服務的 IAM 政策，「開發人員」角色做不到；也涵蓋 workflow 最後讀服務網址那一步 |
+| `logging.logWriter` | 記錄寫入者 | `server/cloudbuild.yaml` 設了 `logging: CLOUD_LOGGING_ONLY`，以自訂帳戶執行時這是必要的 |
+| `iam.serviceAccountUser`（綁在 `github-deployer` 上） | 服務帳戶使用者 | 讓建置能「以自己的身分」執行（`--service-account` 指向自己也要這個權限） |
+| `iam.serviceAccountUser`（綁在 `eco-grid-runtime` 上） | 服務帳戶使用者 | 部署時把服務的執行身分設成 `eco-grid-runtime` |
+
+服務帳戶使用者若給在專案層級，`github-deployer` 就能冒用專案內**任何**服務帳戶——包含日後
+為其他用途建立、權限更大的帳戶。所以只綁在需要的兩個上。
+
+在 Console 上操作的話：專案層級角色在 **IAM** 頁面編輯 `github-deployer` 那一列加入；服務帳戶使用者
+則是到 **服務帳戶** 頁面，分別點進 `github-deployer` 與 `eco-grid-runtime` →「具備存取權的主體」
+→「授予存取權」，主體填 `github-deployer` 的電子郵件、角色選「服務帳戶使用者」。
 
 ## 5. Workload Identity Federation（不存金鑰）
 
@@ -296,10 +321,11 @@ Docker Desktop 預設就是 BuildKit，所以本機不用額外設定。想確�
 也可以不推 commit、直接從本機送一次 Cloud Build（會真的建置並部署）：
 
 ```bash
-gcloud builds submit --config server/cloudbuild.yaml --ignore-file server/.gcloudignore
+gcloud builds submit --config server/cloudbuild.yaml --ignore-file server/.gcloudignore --service-account "projects/${PROJECT_ID}/serviceAccounts/${DEPLOYER}"
 ```
 
-`--ignore-file` 不能省——gcloud 預設只找上傳來源根目錄的 `.gcloudignore`，我們那份在 `server/` 底下。
+兩個參數都不能省：`--ignore-file` 是因為 gcloud 預設只找上傳來源根目錄的 `.gcloudignore`；
+`--service-account` 不帶的話會以 Compute Engine 預設帳戶執行，那個帳戶沒有部署權限，會失敗（§3）。
 
 ## 收尾
 

@@ -70,9 +70,12 @@ jobs:
       #
       # --ignore-file 不能省：gcloud 預設只找上傳來源根目錄的 .gcloudignore，
       # 我們的那份在 server/ 底下，不指定的話會退回用 .gitignore 生成一份。
+      # --service-account 讓建置以 github-deployer 執行，而不是專案共用的 Compute Engine 預設帳戶。
       - name: 建置、推送與部署
         env:
           CLIENT_ORIGIN: ${{ vars.CLIENT_ORIGIN }}
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
         run: |
           subs="_REGION=${REGION},_SERVICE=${SERVICE},_IMAGE_TAG=${GITHUB_SHA::7}"
           # 沒設就沿用 cloudbuild.yaml 裡的預設值
@@ -82,6 +85,7 @@ jobs:
           gcloud builds submit \
             --config server/cloudbuild.yaml \
             --ignore-file server/.gcloudignore \
+            --service-account "projects/${GCP_PROJECT_ID}/serviceAccounts/${GCP_SERVICE_ACCOUNT}" \
             --substitutions "$subs"
 
       - name: 輸出服務網址
