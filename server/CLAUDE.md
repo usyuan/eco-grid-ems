@@ -20,6 +20,7 @@
 - **`--max-instances=1` 是刻意的**。模擬艦隊是行程內狀態，開第二個 instance 會讓不同使用者看到不同的設備清單與告警。要放寬得先有共用狀態（Socket.IO 的 Redis adapter 之類），不是改個數字而已。
 - **沒人連線時計時器會停擺**。Cloud Run 預設在請求以外把 CPU 節流到趨近於零，`setInterval` 不會準時跑。這是預期行為（沒人在看就不該計費），不要用 `--no-cpu-throttling` 去「修」它——那會切成 instance-based 計費，閒置也算錢，免費額度很快就沒了。
 - **WebSocket 最多撐 60 分鐘**。Cloud Run 把 WebSocket 當成長時間請求，`--timeout=3600` 已經是上限，到點會斷線；前端 `lib/socket.ts` 本來就設了無限重連，不需要額外處理。
+- **執行身分 `eco-grid-runtime` 刻意零權限**。這支伺服器對外開 WebSocket、代抓外部資料，是整條部署線上最暴露的東西，不該持有任何 GCP 權限。日後若真需要呼叫 GCP API（例如讀 Secret Manager），只對那一個資源授予最小角色，**不要**改回預設的 Compute Engine 帳戶或給專案層級角色。設定見 `cloudbuild.yaml` deploy step 的 `--service-account` 與 [docs/gcp-deploy.md](../docs/gcp-deploy.md) §3。
 - **`PORT` 與 `CLIENT_ORIGIN` 由環境決定**。`PORT` 是 Cloud Run 指定的（8080），不能寫死；`CLIENT_ORIGIN` 改吃逗號分隔的清單，正式環境放 GitHub Pages 的網域。
 
 ## log 要印成單行 JSON
