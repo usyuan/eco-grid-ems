@@ -13,7 +13,7 @@ const TAIPOWER_LOAD_PARA_URL = "https://www.taipower.com.tw/d006/loadGraph/loadG
 
 /**
  * 機組出力明細。service.taipower.com.tw 沒有回 CORS 標頭所以瀏覽器不能直連；它不像 www 那台擋雲端機房 IP
- * （GCP 台灣機房實測 200），所以由後端代抓在正式環境可用。
+ * （GCP 台灣機房與 Cloud Run us-central1 皆實測 200），所以由後端代抓在正式環境可用。
  */
 const TAIPOWER_GENERATOR_UNITS_URL = "https://service.taipower.com.tw/data/opendata/apply/file/d006001/001.json";
 

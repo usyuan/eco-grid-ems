@@ -28,7 +28,7 @@
 | 資料 | 上游 | 為什麼要代抓 | 正式環境（Cloud Run） |
 |---|---|---|---|
 | 電力供需摘要 | `www.taipower.com.tw` | WAF 擋 Vite dev proxy 的連線指紋 | ❌ 同一個 WAF 也擋雲端機房 IP，固定 403 → 回 502 |
-| 機組出力明細 | `service.taipower.com.tw` | 上游沒有回 CORS 標頭 | ✅ 未擋雲端機房 IP（GCP 台灣機房實測 200） |
+| 機組出力明細 | `service.taipower.com.tw` | 上游沒有回 CORS 標頭 | ✅ 未擋雲端機房 IP（GCP 台灣機房、Cloud Run `us-central1` 皆實測 200） |
 
 實作與原因見 [src/taipowerProxy.ts](src/taipowerProxy.ts) 的註解。
 

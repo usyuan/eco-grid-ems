@@ -114,7 +114,7 @@ src/api/*.ts   use<Thing>() hook（react-query useQuery）
 | Cloud Run `us-central1` | 403 |
 | GCP Cloud Shell（IP 在台灣） | 403 |
 
-最後一列排除了「境外封鎖」——換成台灣機房也一樣被擋，所以搬地區沒有用。任何雲端平台（含 GitHub Actions runner）的 IP 應該都會被同樣對待。同一家的 `service.taipower.com.tw`（機組出力明細）沒有這個限制，Cloud Shell 實測 200。
+最後一列排除了「境外封鎖」——換成台灣機房也一樣被擋，所以搬地區沒有用。任何雲端平台（含 GitHub Actions runner）的 IP 應該都會被同樣對待。同一家的 `service.taipower.com.tw`（機組出力明細）沒有這個限制，Cloud Shell 與 Cloud Run `us-central1` 皆實測 200。
 
 ### shadcn CLI 報 `Could not load the workspace config`
 
