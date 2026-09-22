@@ -45,7 +45,7 @@ Cloud Run 把容器 stdout 的每一行當一筆 log entry 送進 Cloud Logging�
 
 ## taipowerProxy.ts 必須用 Node 原生 fetch
 
-`www.taipower.com.tw` 的 WAF 擋的是**連線指紋**（TLS handshake、HTTP 客戶端特徵），不是請求標頭。原生 `fetch()`（undici）過得去，Vite dev proxy 的 `http-proxy` 過不去。
+這條規則來自電力供需摘要以前用的 `www.taipower.com.tw`：該站的 WAF 擋**連線指紋**（TLS handshake、HTTP 客戶端特徵），原生 `fetch()`（undici）過得去，Vite dev proxy 的 `http-proxy` 過不去。現在兩支都改打 `service.taipower.com.tw`，還沒觀察到這個行為，但同一家公司、隨時可能加上同一套防護。
 
 因此**不要**把它改成 axios / node-fetch，也不要加 proxy agent——換一套 HTTP 客戶端很可能又被擋回去，而且失敗時回的是 200 的假維護頁，不會拋錯，很難察覺。瀏覽器 User-Agent 那組標頭也要留著。
 
@@ -53,8 +53,8 @@ Cloud Run 把容器 stdout 的每一行當一筆 log entry 送進 Cloud Logging�
 
 另外兩件改動時要知道的事：
 
-- **`/load-para` 在 Cloud Run 上固定失敗**。`www.taipower.com.tw` 的 WAF 除了認連線指紋，也封鎖雲端機房 IP——實測從 GCP **台灣**機房一樣 403，所以不是境外封鎖，把 Cloud Run 搬到 `asia-east1` 沒有用。別為了修它去換地區（會失去免費額度）。`/generator-units` 打的 `service.taipower.com.tw` 沒有這個限制。
-- **不要把 `upstream.json()` 改成 `text()` + `JSON.parse`**。`001.json` 開頭帶 UTF-8 BOM，`Response.json()` 依規範會先剝掉 BOM，自己 `JSON.parse` 會在第一個字元炸掉。
+- **`/load-para` 不要換回 `www.taipower.com.tw` 的 `loadpara.json`**。內容和現在用的 `d006020/001.json` 完全相同，但 `www` 前面有 CloudFront／AWS WAF 擋雲端機房 IP——Cloud Shell（ipinfo 判定為台灣台北）帶瀏覽器 UA 打一樣 403，不是地理封鎖，換 Cloud Run 地區沒有用（還會失去免費額度）。
+- **不要把 `upstream.json()` 改成 `text()` + `JSON.parse`**。`d006001/001.json` 開頭帶 UTF-8 BOM，`Response.json()` 依規範會先剝掉 BOM，自己 `JSON.parse` 會在第一個字元炸掉。
 
 ## 模擬資料是行程內記憶體
 

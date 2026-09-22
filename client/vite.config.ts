@@ -16,7 +16,7 @@ export default defineConfig({
   server: {
     proxy: {
       // 台電的兩支資料（供需摘要、機組出力明細）都改由後端代抓（見 server/src/taipowerProxy.ts），
-      // 不在這裡設 proxy：只設 dev proxy 的話正式環境會是 404，而 www.taipower.com.tw 還會擋 Vite proxy。
+      // 不在這裡設 proxy：上游沒開 CORS，只設 dev proxy 的話正式環境會是 404。
       '/api/moenv': {
         target: 'https://data.moenv.gov.tw',
         changeOrigin: true,
