@@ -48,17 +48,17 @@ GCP 一次性設定、免費額度與成本守則見 [docs/gcp-deploy.md](docs/g
 
 正式環境的前端是 GitHub Pages 純靜態站，`server/` 則以容器部署在 Cloud Run。因此瀏覽器拿得到的資料只有兩種：本身有回 `Access-Control-Allow-Origin` 的來源，或經 `server/` 代抓。加新的外部 API 前先照這個順序判斷：
 
-1. **測 CORS**：`curl -I` 看有沒有 `Access-Control-Allow-Origin`。有 → 直接在 `.env.production` 加 `VITE_*_BASE_URL` 走直連，開發環境同樣可直連。
-2. **沒有 CORS** → 開發環境在 [client/vite.config.ts](client/vite.config.ts) 加 `server.proxy` 條目；正式環境要另外在 `server/` 開一支代抓端點才會通，只加 Vite proxy 的話線上是 404。
-3. **Vite proxy 也打不通**（回 404 或假維護頁，但 `curl` 正常）→ 是對方 WAF 在擋 proxy 的連線特徵。先用 Node 原生 `fetch()` 測一次確認端點沒壞，再比照 [server/src/taipowerProxy.ts](server/src/taipowerProxy.ts) 改由後端代抓，**不要在 Vite proxy 上硬解**。完整案例見 [client/CLAUDE.md](client/CLAUDE.md)。
+1. **先找官方開放資料網址**：到[政府資料開放平台](https://data.gov.tw)搜尋，用資料集登記的下載網址（API 回傳的 `resourceDownloadUrl`），**不要從官網頁面的網路請求撈 URL**。頁面自用的資料檔常掛在 CDN／WAF 後面，同一份資料的開放資料版本通常沒有這層防護——電力供需摘要就是這樣踩到的，見 [client/CLAUDE.md](client/CLAUDE.md) 的〈踩坑〉。
+2. **測 CORS**：`curl -I` 看有沒有 `Access-Control-Allow-Origin`。有 → 直接在 `.env.production` 加 `VITE_*_BASE_URL` 走直連，開發環境同樣可直連。
+3. **沒有 CORS** → 開發環境在 [client/vite.config.ts](client/vite.config.ts) 加 `server.proxy` 條目；正式環境要另外在 `server/` 開一支代抓端點才會通，只加 Vite proxy 的話線上是 404。
+4. **Vite proxy 也打不通**（回 404 或假維護頁，但 `curl` 正常）→ 是對方 WAF 在擋 proxy 的連線特徵。先用 Node 原生 `fetch()` 測一次確認端點沒壞，再比照 [server/src/taipowerProxy.ts](server/src/taipowerProxy.ts) 改由後端代抓，**不要在 Vite proxy 上硬解**。完整案例見 [client/CLAUDE.md](client/CLAUDE.md)。
 
 現況：
 
 | 來源 | 走法 | 正式環境 |
 |---|---|---|
-| 環境部 `data.moenv.gov.tw` | 第 1 條，直連 | ✅ |
-| 台電 `service.taipower.com.tw`（機組出力明細） | 第 2 條，由 `server/` 代抓 `/taipower/generator-units` | ✅ |
-| 台電 `www.taipower.com.tw`（電力供需摘要） | 第 3 條，由 `server/` 代抓 `/taipower/load-para` | ❌ 該站也封鎖雲端機房 IP，Cloud Run 打過去固定 403 |
+| 環境部 `data.moenv.gov.tw` | 第 2 條，直連 | ✅ |
+| 台電 `service.taipower.com.tw`（機組出力明細 `d006001`） | 第 3 條，由 `server/` 代抓 `/taipower/generator-units` | ✅ |
+| 台電 `service.taipower.com.tw`（電力供需摘要 `d006020`） | 第 3 條，由 `server/` 代抓 `/taipower/load-para` | ✅ 預期可用：同一台主機的 `d006001` 已在 Cloud Run 實測 200 |
 
-最後一列提醒一件事：**改由後端代抓不保證正式環境能用**，對方可能擋雲端機房 IP。加新來源時除了本機測試，也要在 Cloud Shell（它本身就是 GCP 機房 IP）用 `curl` 打一次；結果是 403 的話，這個來源在正式環境就無解，換地區也沒用。案例見 [client/CLAUDE.md](client/CLAUDE.md) 的〈踩坑〉。
-
+**改由後端代抓不保證正式環境能用**，對方可能擋雲端機房 IP。加新來源時除了本機測試，也要在 Cloud Shell（它本身就是 GCP 機房 IP）用 `curl` **帶瀏覽器 UA** 打一次——不帶 UA 的 403 可能只是 UA 被擋，分辨不出是不是 IP 的問題。帶了 UA 還是 403，就代表這個網址在正式環境不能用，換 Cloud Run 地區也沒用；這時回第 1 條，找同一份資料有沒有別的官方網址。

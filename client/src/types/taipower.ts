@@ -56,7 +56,7 @@ export interface TaipowerRealtimeHourlyPeakRecord {
 }
 
 /**
- * loadpara.json 的 records 是「4 種不同形狀物件」混在同一陣列裡（依索引固定順序，
+ * 電力供需摘要（d006020/001.json）的 records 是「4 種不同形狀物件」混在同一陣列裡（依索引固定順序，
  * 非依欄位名稱可靠區分），請用 parseLoadPara() 依欄位是否存在來分辨，不要用 records[n] 硬取索引。
  */
 export type TaipowerLoadParaRecord =

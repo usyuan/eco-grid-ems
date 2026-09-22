@@ -23,21 +23,21 @@
 
 ### 2. 台電開放資料代抓
 
-台電兩支資料瀏覽器都拿不到，一律由後端用 Node 原生 `fetch()` 代抓後原樣轉發：
+台電兩支資料都在 `service.taipower.com.tw`，沒有回 CORS 標頭，瀏覽器拿不到，一律由後端用 Node 原生 `fetch()` 代抓後原樣轉發：
 
 | 資料 | 上游 | 為什麼要代抓 | 正式環境（Cloud Run） |
 |---|---|---|---|
-| 電力供需摘要 | `www.taipower.com.tw` | WAF 擋 Vite dev proxy 的連線指紋 | ❌ 同一個 WAF 也擋雲端機房 IP，固定 403 → 回 502 |
-| 機組出力明細 | `service.taipower.com.tw` | 上游沒有回 CORS 標頭 | ✅ 未擋雲端機房 IP（GCP 台灣機房實測 200） |
+| 電力供需摘要 | `d006020/001.json`（[dataset 162595](https://data.gov.tw/dataset/162595)） | 上游沒有回 CORS 標頭 | ✅ 預期可用（同一台主機） |
+| 機組出力明細 | `d006001/001.json` | 上游沒有回 CORS 標頭 | ✅ 未擋雲端機房 IP（GCP 台灣機房、Cloud Run `us-central1` 皆實測 200） |
 
-實作與原因見 [src/taipowerProxy.ts](src/taipowerProxy.ts) 的註解。
+實作與原因見 [src/taipowerProxy.ts](src/taipowerProxy.ts) 的註解。電力供需摘要以前打的是 `www.taipower.com.tw` 官網頁面自用的 `loadpara.json`，該站擋雲端機房 IP，正式環境拿不到，已改用官方開放資料網址（見 [CLAUDE.md](CLAUDE.md)）。
 
 ## 端點
 
 | 方法 | 路徑 | 回應 |
 |---|---|---|
 | GET | `/health` | `{ status, uptime }` |
-| GET | `/taipower/load-para` | 台電電力供需摘要（原樣轉發，上游異常時回 502；正式環境固定 502） |
+| GET | `/taipower/load-para` | 台電電力供需摘要（原樣轉發，上游異常時回 502） |
 | GET | `/taipower/generator-units` | 台電機組出力明細（原樣轉發，上游異常時回 502） |
 
 Socket.IO 掛在同一個 HTTP server 上。

@@ -2,18 +2,16 @@ import { Router, type Response } from "express";
 import { log } from "./logger.js";
 
 /**
- * 電力供需摘要。www.taipower.com.tw 的 WAF 會擋掉 Vite dev proxy（底層是 Node http-proxy／核心 https 模組）
- * 發出的請求，回傳一個帶 SecurityTeam_FakeCookie 的假「網站維護中」頁面；但 Node 原生 fetch（undici）搭配
- * 一般瀏覽器 User-Agent 打就正常，跟 curl／真實瀏覽器行為一致。因此改由後端用原生 fetch 代抓。
- *
- * 部署到 Cloud Run 後這支一律 403：同一個 WAF 也封鎖雲端機房 IP（實測 GCP 台灣機房一樣被擋，
- * 所以不是境外封鎖，換地區沒用）。只有從住宅／一般網路發出才通，正式環境無解，詳見 client/CLAUDE.md。
+ * 電力供需摘要。用政府資料開放平台 dataset 162595 登記的官方下載網址，不要換回
+ * www.taipower.com.tw/d006/loadGraph/loadGraph/data/loadpara.json——兩者內容完全相同，但 www 那支是官網
+ * 「今日電力資訊」頁面自用的資料檔，前面有 CloudFront／AWS WAF 擋雲端機房 IP，Cloud Run 打過去固定 403。
+ * 上游沒有回 CORS 標頭，所以仍需後端代抓。詳見 client/CLAUDE.md。
  */
-const TAIPOWER_LOAD_PARA_URL = "https://www.taipower.com.tw/d006/loadGraph/loadGraph/data/loadpara.json";
+const TAIPOWER_LOAD_PARA_URL = "https://service.taipower.com.tw/data/opendata/apply/file/d006020/001.json";
 
 /**
  * 機組出力明細。service.taipower.com.tw 沒有回 CORS 標頭所以瀏覽器不能直連；它不像 www 那台擋雲端機房 IP
- * （GCP 台灣機房實測 200），所以由後端代抓在正式環境可用。
+ * （GCP 台灣機房與 Cloud Run us-central1 皆實測 200），所以由後端代抓在正式環境可用。
  */
 const TAIPOWER_GENERATOR_UNITS_URL = "https://service.taipower.com.tw/data/opendata/apply/file/d006001/001.json";
 
@@ -27,13 +25,11 @@ async function forwardJson(url: string, res: Response): Promise<void> {
   try {
     const upstream = await fetch(url, { headers: BROWSER_LIKE_HEADERS });
     if (!upstream.ok) {
-      // WAF 擋 Vite proxy 時回的是 200 的假維護頁，不會走到這裡；會走到這裡的是雲端機房 IP 被拒（403）
-      // 或上游真的故障。前者在正式環境是常態，所以用 warn 而不是 error。
-      log.warn("台電上游回應異常", { status: upstream.status, url });
+      log.error("台電上游回應異常", { status: upstream.status, url });
       res.status(502).json({ error: `台電上游回應異常 (${upstream.status})` });
       return;
     }
-    // 必須用 Response.json()：001.json 開頭帶 UTF-8 BOM，json() 依規範會先剝掉 BOM 再解析，
+    // 必須用 Response.json()：d006001/001.json 開頭帶 UTF-8 BOM，json() 依規範會先剝掉 BOM 再解析，
     // 改成 text() + JSON.parse 就會在第一個字元炸掉。
     const data = await upstream.json();
     res.json(data);
