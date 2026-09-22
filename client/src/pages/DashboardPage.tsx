@@ -36,6 +36,13 @@ export function DashboardPage() {
           unit="Hz"
           icon={Activity}
           tone={Math.abs(frequency - 60) > 0.3 ? "warning" : "info"}
+          info={
+            <>
+              <p>交流電每秒的週期數，單位 Hz（赫茲）。台灣電網標稱 60 Hz。</p>
+              <p>發電與用電平衡時維持 60 Hz；用電大於發電時頻率下降，反之上升。偏離超過 ±0.3 Hz 時卡片轉為警示色。</p>
+              <p className="opacity-70">資料：本系統模擬推播，每秒一筆，非台電實測值。</p>
+            </>
+          }
         />
         <KpiCard label="上線設備" value={`${onlineCount}/${equipment.length}`} icon={Server} tone="primary" />
         <KpiCard

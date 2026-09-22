@@ -1,4 +1,6 @@
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
+import { InfoTip } from "@/components/dashboard/InfoTip";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +10,8 @@ interface KpiCardProps {
   unit?: string;
   icon: LucideIcon;
   tone?: "primary" | "info" | "warning" | "destructive";
+  /** 有值時在標題旁顯示「i」圖示，滑鼠移入顯示說明 */
+  info?: ReactNode;
 }
 
 const TONE_CLASSES: Record<NonNullable<KpiCardProps["tone"]>, string> = {
@@ -17,12 +21,15 @@ const TONE_CLASSES: Record<NonNullable<KpiCardProps["tone"]>, string> = {
   destructive: "bg-destructive/15 text-destructive",
 };
 
-export function KpiCard({ label, value, unit, icon: Icon, tone = "primary" }: KpiCardProps) {
+export function KpiCard({ label, value, unit, icon: Icon, tone = "primary", info }: KpiCardProps) {
   return (
     <Card>
       <CardContent className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
+          <div className="flex items-center gap-1">
+            <p className="text-sm text-muted-foreground">{label}</p>
+            {info && <InfoTip label={label}>{info}</InfoTip>}
+          </div>
           <p className="mt-1 text-2xl font-semibold tabular-nums">
             {value}
             {unit && <span className="ml-1 text-sm font-normal text-muted-foreground">{unit}</span>}
