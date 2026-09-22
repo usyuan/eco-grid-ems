@@ -82,7 +82,7 @@ src/api/*.ts   use<Thing>() hook（react-query useQuery）
 - **`parse*()`**：`parseGeneratorUnits`、`parseLoadPara` 等，理由見下方〈已知資料怪癖〉。
 - **快取設定**（`src/lib/queryClient.ts`）：`staleTime` 30s、`retry` 2、不隨視窗 focus 重抓。
 - **消費端**：`PowerSupplyCard`、`AirQualityCard`、`GeneratorMixCard`。
-- **輪詢間隔**：電力供需摘要 60s，機組出力明細與空氣品質 300s。
+- **輪詢間隔**：三者皆 300s。電力供需摘要台電每 10 分鐘才發布一次，輪詢再密也拿不到更新的資料。
 
 ## 已知資料怪癖
 

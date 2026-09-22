@@ -25,7 +25,9 @@ export function usePowerSupply() {
   return useQuery({
     queryKey: ["powerSupply"],
     queryFn: () => fetchJson<TaipowerLoadParaResponse>(`${API_BASE_URL}/taipower/load-para`),
-    refetchInterval: 60_000,
+    // 台電每 10 分鐘才發布一次，輪詢太密只是重複拿同一份；
+    // 也不直接設 10 分鐘，因為輪詢與發布時點沒對齊，畫面最壞會落後「10 分 + 輪詢間隔」
+    refetchInterval: 300_000,
   });
 }
 

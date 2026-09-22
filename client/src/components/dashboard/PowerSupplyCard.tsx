@@ -19,7 +19,8 @@ function Stat({ label, value, info }: { label: string; value: string; info: Reac
 
 // 台電原始值是「萬瓩」，畫面上已換成 MW；說明裡交代換算，免得使用者對照台電官網時以為數字差了 10 倍
 const WAN_KW_NOTE = <p>台電原始值單位為「萬瓩」，×10 換算成 MW。</p>;
-const SOURCE_NOTE = <p className="opacity-70">資料：台電電力供需摘要，每 60 秒更新。</p>;
+// 更新頻率寫的是台電發布資料的週期（data.gov.tw dataset 162595 標示每 10 分），不是前端的輪詢間隔
+const SOURCE_NOTE = <p className="opacity-70">資料：台電電力供需摘要，台電每 10 分鐘更新一次。</p>;
 
 export function PowerSupplyCard() {
   const { data, isLoading, isError } = usePowerSupply();
